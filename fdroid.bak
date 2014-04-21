@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# fdroid.py - part of the FDroid server tools
+# Copyright (C) 2010-13, Ciaran Gultnieks, ciaran@ciarang.com
+# Copyright (C) 2013-2014 Daniel Martí <mvdan@mvdan.cc>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+import logging
+
+commands = {
+        "build": "Build a package from source",
+        "init": "Quickly start a new repository",
+        "publish": "Sign and place packages in the repo",
+        "update": "Update repo information for new packages",
+        "verify": "Verify the integrity of downloaded packages",
+        "checkupdates": "Check for updates to applications",
+        "import": "Add a new application from its source code",
+        "install": "Install built packages on devices",
+        "readmeta": "Read all the metadata files and exit",
+        "rewritemeta": "Rewrite all the metadata files",
+        "lint": "Warn about possible metadata errors",
+        "scanner": "Scan the source code of a package",
+        "stats": "Update the stats of the repo",
+        "server": "Interact with the repo HTTP server",
+        }
+
+def print_help():
+    for cmd,summary in commands.items():
+        print "   " + cmd + ' '*(15-len(cmd)) + summary
+    print
+
+def main():
+
+    if len(sys.argv) <= 1:
+        print_help()
+        sys.exit(0)
+
+    command = sys.argv[1]
+    if command not in commands:
+        if command in ('-h', '--help'):
+            print_help()
+            sys.exit(0)
+        else:
+            print "Command '%s' not recognised.\n" % command
+            print_help()
+            sys.exit(1)
+
+    verbose = any(s in sys.argv for s in ['-v', '--verbose'])
+    quiet = any(s in sys.argv for s in ['-q', '--quiet'])
+    if verbose and quiet:
+        print "Specifying verbose and quiet and the same time is silly"
+        sys.exit(1)
+
+    if verbose:
+        logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+    elif quiet:
+        logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.WARN)
+    else:
+        logging.basicConfig(format='%(message)s', level=logging.INFO)
+
+    # Trick optparse into displaying the right usage when --help is used.
+    sys.argv[0] += ' ' + command
+
+    del sys.argv[1]
+    mod = __import__('fdroidserver.' + command, None, None, [command])
+    mod.main()
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+
