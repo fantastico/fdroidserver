@@ -8,5 +8,6 @@
 build/
 dist/
 env/
+.idea/
 fdroidserver.egg-info/
 pylint.parseable
