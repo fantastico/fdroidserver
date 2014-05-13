@@ -54,6 +54,9 @@ of applications from the main repository.
 """
 
 
+# The ID of a GPG key for making detached signatures for apks. Optional.
+#gpgkey = '1DBA2E89'
+
 # The key (from the keystore defined below) to be used for signing the
 # repository itself.  This is the same name you would give to keytool or
 # jarsigner using -alias.  (Not needed in an unsigned repository).
@@ -100,10 +103,19 @@ keyaliases['com.example.another.plugin'] = '@com.example.another'
 # generated repo to the server that is it hosted on.  It must end in the
 # standard public repo name of "/fdroid", but can be in up to three levels of
 # sub-directories (i.e. /var/www/packagerepos/fdroid).
-serverwebroot = 'user@example:/var/www/fdroid'
+#serverwebroot = 'user@example:/var/www/fdroid'
+
+# To upload the repo to an Amazon S3 bucket using `fdroid server update`.
+# Warning, this deletes and recreates the whole fdroid/ directory each
+# time. This is based on apache-libcloud, which supports basically all cloud
+# storage services, so it should be easy to port the fdroid server tools to
+# any of them.
+#awsbucket = 'myawsfdroid'
+#awsaccesskeyid = 'SEE0CHAITHEIMAUR2USA'
+#awssecretkey = 'yourverysecretkeywordpassphraserighthere'
 
 # If you want to force 'fdroid server' to use a non-standard serverwebroot
-#nonstandardwebroot = True
+#nonstandardwebroot = False
 
 #Wiki details
 wiki_protocol = "http"

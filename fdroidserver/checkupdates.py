@@ -123,6 +123,9 @@ def check_tags(app, pattern):
             pat = re.compile(pattern)
             tags = [tag for tag in tags if pat.match(tag)]
 
+        if repotype in ('git',):
+            tags = vcs.latesttags(tags, 5)
+
         for tag in tags:
             logging.debug("Check tag: '{0}'".format(tag))
             vcs.gotorevision(tag)
@@ -476,12 +479,11 @@ def main():
                     if not latest or int(build['vercode']) > int(latest['vercode']):
                         latest = build
 
-                if 'disable' in latest:
-                    logging.warn('Not auto-updating %s since the latest build is disabled' % app['id'])
-                elif not gotcur:
+                if not gotcur:
                     newbuild = latest.copy()
-                    if 'origlines' in newbuild:
-                        del newbuild['origlines']
+                    for k in ('origlines', 'disable'):
+                        if k in newbuild:
+                            del newbuild[k]
                     newbuild['vercode'] = app['Current Version Code']
                     newbuild['version'] = app['Current Version'] + suffix
                     logging.info("...auto-generating build for " + newbuild['version'])

@@ -111,23 +111,26 @@ regex_pedantic = {
         ],
 }
 
-appid = None
-
 def main():
 
-    global config, options, appid
+    global config, options, appid, app_count, warn_count
+    appid = None
+
+    app_count = 0
+    warn_count = 0
 
     def warn(message):
-        global appid
+        global appid, app_count, warn_count
         if appid:
             print "%s:" % appid
             appid = None
+            app_count += 1
         print '    %s' % message
+        warn_count += 1
 
     def pwarn(message):
         if options.pedantic:
             warn(message)
-
 
     # Parse command line...
     parser = OptionParser(usage="Usage: %prog [options] [APPID [APPID ...]]")
@@ -169,6 +172,18 @@ def main():
         if summ_chars > config['char_limits']['Summary']:
             warn("Summary of length %s is over the %i char limit" % (
                 summ_chars, config['char_limits']['Summary']))
+
+        # Redundant summaries
+        summary = app['Summary']
+        name = str(app['Name'] if app['Name'] else app['Auto Name'])
+        if summary and name:
+            summary_l = summary.lower()
+            name_l = name.lower()
+            if summary_l == name_l:
+                warn("Summary '%s' is just the app's name" % summary)
+            elif (summary_l in name_l or name_l in summary_l):
+                pwarn("Summary '%s' probably contains redundant info already in app name '%s'" % (
+                    summary, name))
 
         # Invalid lists
         desc_chars = 0
@@ -212,7 +227,7 @@ def main():
         if not appid:
             print
 
-    logging.info("Finished.")
+    logging.info("Found a total of %i warnings in %i apps." % (warn_count, app_count))
 
 if __name__ == "__main__":
     main()

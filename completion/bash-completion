@@ -65,7 +65,8 @@ __apk_vercode() {
 }
 
 __vercode() {
-	local p=${cur:0:-1}
+	local p v
+	echo $cur | IFS=':' read p v
 
 	COMPREPLY=( $( compgen -P "${p}:" -W "$( while read line; do
 		if [[ "$line" == "Build Version:"* ]]
@@ -92,14 +93,15 @@ __complete_options() {
 }
 
 __complete_build() {
-	opts="-h -v -c -l -s -t -f"
-	lopts="--help --verbose --latest --server --resetserver --on-server
- --skip-scan --no-tarball --force --all"
+	opts="-h -v -q -l -s -t -f -a -w"
+
+	lopts="--help --verbose --quiet --latest --stop --test --server --resetserver
+ --on-server --skip-scan --no-tarball --force --all --wiki"
 	case "${cur}" in
 		-*)
 			__complete_options
 			return 0;;
-		*:)
+		*:*)
 			__vercode
 			return 0;;
 		*)
@@ -166,10 +168,10 @@ __complete_checkupdates() {
 }
 
 __complete_import() {
-	opts="-h -u -s -r"
-	lopts="--help --url --subdir --repo"
+	opts="-h -u -s -r -q"
+	lopts="--help --url --subdir --repo --rev --quiet"
 	case "${prev}" in
-		-u|--url|-r|--repo|-s|--subdir) return 0;;
+		-u|--url|-r|--repo|-s|--subdir|--rev) return 0;;
 	esac
 	__complete_options
 }

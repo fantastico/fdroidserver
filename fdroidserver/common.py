@@ -19,6 +19,7 @@
 
 import os, sys, re
 import shutil
+import glob
 import stat
 import subprocess
 import time
@@ -32,6 +33,28 @@ import metadata
 
 config = None
 options = None
+
+def get_default_config():
+    return {
+        'sdk_path': os.getenv("ANDROID_HOME"),
+        'ndk_path': "$ANDROID_NDK",
+        'build_tools': "19.0.3",
+        'ant': "ant",
+        'mvn3': "mvn",
+        'gradle': 'gradle',
+        'archive_older': 0,
+        'update_stats': False,
+        'stats_to_carbon': False,
+        'repo_maxage': 0,
+        'build_server_always': False,
+        'keystore': '$HOME/.local/share/fdroidserver/keystore.jks',
+        'smartcardoptions': [],
+        'char_limits': {
+            'Summary' : 50,
+            'Description' : 1500
+        },
+        'keyaliases': { },
+    }
 
 def read_config(opts, config_file='config.py'):
     """Read the repository config
@@ -64,26 +87,7 @@ def read_config(opts, config_file='config.py'):
                                       'sun.security.pkcs11.SunPKCS11',
                                       '-providerArg', 'opensc-fdroid.cfg']
 
-    defconfig = {
-        'sdk_path': "$ANDROID_HOME",
-        'ndk_path': "$ANDROID_NDK",
-        'build_tools': "19.0.3",
-        'ant': "ant",
-        'mvn3': "mvn",
-        'gradle': 'gradle',
-        'archive_older': 0,
-        'update_stats': False,
-        'stats_to_carbon': False,
-        'repo_maxage': 0,
-        'build_server_always': False,
-        'keystore': '$HOME/.local/share/fdroidserver/keystore.jks',
-        'smartcardoptions': [],
-        'char_limits': {
-            'Summary' : 50,
-            'Description' : 1500
-        },
-        'keyaliases': { },
-    }
+    defconfig = get_default_config()
     for k, v in defconfig.items():
         if k not in config:
             config[k] = v
@@ -95,14 +99,7 @@ def read_config(opts, config_file='config.py'):
         v = os.path.expanduser(v)
         config[k] = os.path.expandvars(v)
 
-    if not config['sdk_path']:
-        logging.critical("Neither $ANDROID_HOME nor sdk_path is set, no Android SDK found!")
-        sys.exit(3)
-    if not os.path.exists(config['sdk_path']):
-        logging.critical('Android SDK path "' + config['sdk_path'] + '" does not exist!')
-        sys.exit(3)
-    if not os.path.isdir(config['sdk_path']):
-        logging.critical('Android SDK path "' + config['sdk_path'] + '" is not a directory!')
+    if not test_sdk_exists(config):
         sys.exit(3)
 
     if any(k in config for k in ["keystore", "keystorepass", "keypass"]):
@@ -114,7 +111,32 @@ def read_config(opts, config_file='config.py'):
         if k in config:
             write_password_file(k)
 
+    # since this is used with rsync, where trailing slashes have meaning,
+    # ensure there is always a trailing slash
+    if 'serverwebroot' in config:
+        if config['serverwebroot'][-1] != '/':
+            config['serverwebroot'] += '/'
+        config['serverwebroot'] = config['serverwebroot'].replace('//', '/')
+
     return config
+
+def test_sdk_exists(c):
+    if c['sdk_path'] == None:
+        # c['sdk_path'] is set to the value of ANDROID_HOME by default
+        logging.critical('No Android SDK found! ANDROID_HOME is not set and sdk_path is not in config.py!')
+        logging.info('You can use ANDROID_HOME to set the path to your SDK, i.e.:')
+        logging.info('\texport ANDROID_HOME=/opt/android-sdk')
+        return False
+    if not os.path.exists(c['sdk_path']):
+        logging.critical('Android SDK path "' + c['sdk_path'] + '" does not exist!')
+        return False
+    if not os.path.isdir(c['sdk_path']):
+        logging.critical('Android SDK path "' + c['sdk_path'] + '" is not a directory!')
+        return False
+    if not os.path.isdir(os.path.join(c['sdk_path'], 'build-tools')):
+        logging.critical('Android SDK path "' + c['sdk_path'] + '" does not contain "build-tools/"!')
+        return False
+    return True
 
 def write_password_file(pwtype, password=None):
     '''
@@ -122,7 +144,7 @@ def write_password_file(pwtype, password=None):
     command line argments
     '''
     filename = '.fdroid.' + pwtype + '.txt'
-    fd = os.open(filename, os.O_CREAT | os.O_WRONLY, 0600)
+    fd = os.open(filename, os.O_CREAT | os.O_TRUNC | os.O_WRONLY, 0600)
     if password == None:
         os.write(fd, config[pwtype])
     else:
@@ -319,6 +341,10 @@ class vcs:
     def gettags(self):
         raise VCSException('gettags not supported for this vcs type')
 
+    # Get a list of latest number tags
+    def latesttags(self, number):
+        raise VCSException('latesttags not supported for this vcs type')
+
     # Get current commit reference (hash, revision, etc)
     def getref(self):
         raise VCSException('getref not supported for this vcs type')
@@ -402,6 +428,9 @@ class vcs_git(vcs):
             p = SilentPopen(['git', 'submodule', 'foreach', '--recursive'] + cmd, cwd=self.local)
             if p.returncode != 0:
                 raise VCSException("Git submodule reset failed")
+        p = FDroidPopen(['git', 'submodule', 'sync'], cwd=self.local)
+        if p.returncode != 0:
+            raise VCSException("Git submodule sync failed")
         p = FDroidPopen(['git', 'submodule', 'update', '--init', '--force', '--recursive'], cwd=self.local)
         if p.returncode != 0:
             raise VCSException("Git submodule update failed")
@@ -410,6 +439,14 @@ class vcs_git(vcs):
         self.checkrepo()
         p = SilentPopen(['git', 'tag'], cwd=self.local)
         return p.stdout.splitlines()
+
+    def latesttags(self, alltags, number):
+        self.checkrepo()
+        p = SilentPopen(['echo "'+'\n'.join(alltags)+'" | \
+                xargs -I@ git log --format=format:"%at @%n" -1 @ | \
+                sort -n | awk \'{print $2}\''],
+                cwd=self.local, shell=True)
+        return p.stdout.splitlines()[-number:]
 
 
 class vcs_gitsvn(vcs):
@@ -643,7 +680,7 @@ def retrieve_string(app_dir, string, xmlfiles=None):
 
     res_dirs = [
             os.path.join(app_dir, 'res'),
-            os.path.join(app_dir, 'src/main/res'),
+            os.path.join(app_dir, 'src/main'),
             ]
 
     if xmlfiles is None:
@@ -1093,7 +1130,7 @@ def prepare_source(vcs, app, build, build_dir, srclib_dir, extlib_dir, onserver=
 
     # Delete unwanted files
     if 'rm' in build:
-        for part in build['rm']:
+        for part in getpaths(build_dir, build, 'rm'):
             dest = os.path.join(build_dir, part)
             logging.info("Removing {0}".format(part))
             if os.path.lexists(dest):
@@ -1173,6 +1210,18 @@ def prepare_source(vcs, app, build, build_dir, srclib_dir, extlib_dir, onserver=
 
     return (root_dir, srclibpaths)
 
+# Split and extend via globbing the paths from a field
+def getpaths(build_dir, build, field):
+    paths = []
+    if field not in build:
+        return paths
+    for p in build[field]:
+        p = p.strip()
+        full_path = os.path.join(build_dir, p)
+        full_path = os.path.normpath(full_path)
+        paths += [r[len(build_dir)+1:] for r in glob.glob(full_path)]
+    return paths
+
 # Scan the source code in the given directory (and all subdirectories)
 # and return the number of fatal problems encountered
 def scan_source(build_dir, root_dir, thisbuild):
@@ -1180,39 +1229,26 @@ def scan_source(build_dir, root_dir, thisbuild):
     count = 0
 
     # Common known non-free blobs (always lower case):
-    usual_suspects = ['flurryagent',
-                      'paypal_mpl',
-                      'libgoogleanalytics',
-                      'admob-sdk-android',
-                      'googleadview',
-                      'googleadmobadssdk',
-                      'google-play-services',
-                      'crittercism',
-                      'heyzap',
-                      'jpct-ae',
-                      'youtubeandroidplayerapi',
-                      'bugsense',
-                      'crashlytics',
-                      'ouya-sdk']
+    usual_suspects = [
+            re.compile(r'flurryagent', re.IGNORECASE),
+            re.compile(r'paypal.*mpl', re.IGNORECASE),
+            re.compile(r'libgoogleanalytics', re.IGNORECASE),
+            re.compile(r'admob.*sdk.*android', re.IGNORECASE),
+            re.compile(r'googleadview', re.IGNORECASE),
+            re.compile(r'googleadmobadssdk', re.IGNORECASE),
+            re.compile(r'google.*play.*services', re.IGNORECASE),
+            re.compile(r'crittercism', re.IGNORECASE),
+            re.compile(r'heyzap', re.IGNORECASE),
+            re.compile(r'jpct.*ae', re.IGNORECASE),
+            re.compile(r'youtubeandroidplayerapi', re.IGNORECASE),
+            re.compile(r'bugsense', re.IGNORECASE),
+            re.compile(r'crashlytics', re.IGNORECASE),
+            re.compile(r'ouya.*sdk', re.IGNORECASE),
+            re.compile(r'libspen23', re.IGNORECASE),
+            ]
 
-    def getpaths(field):
-        paths = []
-        if field not in thisbuild:
-            return paths
-        for p in thisbuild[field]:
-            p = p.strip()
-            if p == '.':
-                p = '/'
-            elif p.startswith('./'):
-                p = p[1:]
-            elif not p.startswith('/'):
-                p = '/' + p;
-            if p not in paths:
-                paths.append(p)
-        return paths
-
-    scanignore = getpaths('scanignore')
-    scandelete = getpaths('scandelete')
+    scanignore = getpaths(build_dir, thisbuild, 'scanignore')
+    scandelete = getpaths(build_dir, thisbuild, 'scandelete')
 
     try:
         ms = magic.open(magic.MIME_TYPE)
@@ -1253,42 +1289,56 @@ def scan_source(build_dir, root_dir, thisbuild):
     # Iterate through all files in the source code
     for r,d,f in os.walk(build_dir):
 
-        if any(insidedir(r, igndir) for igndir in ('.hg', '.git', '.svn')):
+        if any(insidedir(r, d) for d in ('.hg', '.git', '.svn', '.bzr')):
             continue
 
         for curfile in f:
 
             # Path (relative) to the file
             fp = os.path.join(r, curfile)
-            fd = fp[len(build_dir):]
+            fd = fp[len(build_dir)+1:]
 
             # Check if this file has been explicitly excluded from scanning
             if toignore(fd):
                 continue
 
-            for suspect in usual_suspects:
-                if suspect in curfile.lower():
-                    count += handleproblem('usual supect', fd, fp)
-
             mime = magic.from_file(fp, mime=True) if ms is None else ms.file(fp)
+
             if mime == 'application/x-sharedlib':
                 count += handleproblem('shared library', fd, fp)
+
             elif mime == 'application/x-archive':
                 count += handleproblem('static library', fd, fp)
+
             elif mime == 'application/x-executable':
                 count += handleproblem('binary executable', fd, fp)
+
             elif mime == 'application/x-java-applet':
                 count += handleproblem('Java compiled class', fd, fp)
-            elif mime == 'application/jar' and has_extension(fp, 'apk'):
-                removeproblem('APK file', fd, fp)
-            elif has_extension(fp, 'jar') and mime in [
+
+            elif mime in (
+                    'application/jar',
                     'application/zip',
                     'application/java-archive',
+                    'application/octet-stream',
                     'binary',
-                    ]:
-                warnproblem('JAR file', fd)
-            elif mime == 'application/zip':
-                warnproblem('ZIP file', fd)
+                    ):
+
+                if has_extension(fp, 'apk'):
+                    removeproblem('APK file', fd, fp)
+
+                elif has_extension(fp, 'jar'):
+
+                    if any(suspect.match(curfile) for suspect in usual_suspects):
+                        count += handleproblem('usual supect', fd, fp)
+                    else:
+                        warnproblem('JAR file', fd)
+
+                elif has_extension(fp, 'zip'):
+                    warnproblem('ZIP file', fd)
+
+                else:
+                    warnproblem('unknown compressed or binary file', fd)
 
             elif has_extension(fp, 'java'):
                 for line in file(fp):
@@ -1419,7 +1469,7 @@ class PopenResult:
 def SilentPopen(commands, cwd=None, shell=False):
     return FDroidPopen(commands, cwd=cwd, shell=shell, output=False)
 
-def FDroidPopen(commands, cwd=None, shell=False, output=True, u_newlines=True):
+def FDroidPopen(commands, cwd=None, shell=False, output=True):
     """
     Run a command and capture the possibly huge output.
 
@@ -1428,14 +1478,14 @@ def FDroidPopen(commands, cwd=None, shell=False, output=True, u_newlines=True):
     :returns: A PopenResult.
     """
 
-    if cwd:
-        cwd = os.path.normpath(cwd)
-        logging.info("Directory: %s" % cwd)
-    logging.info("> %s" % ' '.join(commands))
+    if output:
+        if cwd:
+            cwd = os.path.normpath(cwd)
+            logging.info("Directory: %s" % cwd)
+        logging.info("> %s" % ' '.join(commands))
 
     result = PopenResult()
     p = subprocess.Popen(commands, cwd=cwd, shell=shell,
-            universal_newlines=u_newlines,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     stdout_queue = Queue.Queue()

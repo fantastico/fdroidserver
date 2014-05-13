@@ -23,13 +23,16 @@ import re
 import time
 import traceback
 import glob
+import json
 from optparse import OptionParser
 import paramiko
 import socket
 import logging
-import common, metadata
+import common
+import metadata
 import subprocess
 from collections import Counter
+
 
 def carbon_send(key, value):
     s = socket.socket()
@@ -40,6 +43,7 @@ def carbon_send(key, value):
 
 options = None
 config = None
+
 
 def main():
 
@@ -53,6 +57,9 @@ def main():
                       help="Restrict output to warnings and errors")
     parser.add_option("-d", "--download", action="store_true", default=False,
                       help="Download logs we don't have")
+    parser.add_option("--recalc", action="store_true", default=False,
+                      help="Recalculate aggregate stats - use when changes "
+                      "have been made that would invalidate old cached data.")
     parser.add_option("--nologs", action="store_true", default=False,
                       help="Don't do anything logs-related")
     (options, args) = parser.parse_args()
@@ -85,7 +92,7 @@ def main():
             ssh = paramiko.SSHClient()
             ssh.load_system_host_keys()
             ssh.connect('f-droid.org', username='fdroid', timeout=10,
-                    key_filename=config['webserver_keyfile'])
+                        key_filename=config['webserver_keyfile'])
             ftp = ssh.open_sftp()
             ftp.get_channel().settimeout(60)
             logging.info("...connected")
@@ -105,7 +112,7 @@ def main():
             traceback.print_exc()
             sys.exit(1)
         finally:
-            #Disconnect
+            # Disconnect
             if ftp is not None:
                 ftp.close()
             if ssh is not None:
@@ -119,29 +126,61 @@ def main():
         logging.info('Processing logs...')
         appscount = Counter()
         appsvercount = Counter()
-        logexpr = '(?P<ip>[.:0-9a-fA-F]+) - - \[(?P<time>.*?)\] "GET (?P<uri>.*?) HTTP/1.\d" (?P<statuscode>\d+) \d+ "(?P<referral>.*?)" "(?P<useragent>.*?)"'
+        logexpr = '(?P<ip>[.:0-9a-fA-F]+) - - \[(?P<time>.*?)\] ' + \
+                  '"GET (?P<uri>.*?) HTTP/1.\d" (?P<statuscode>\d+) ' + \
+                  '\d+ "(?P<referral>.*?)" "(?P<useragent>.*?)"'
         logsearch = re.compile(logexpr).search
-        for logfile in glob.glob(os.path.join(logsdir,'access-*.log.gz')):
+        for logfile in glob.glob(os.path.join(logsdir, 'access-*.log.gz')):
             logging.debug('...' + logfile)
-            if options.verbose:
-                print '...' + logfile
-            p = subprocess.Popen(["zcat", logfile], stdout = subprocess.PIPE)
-            matches = (logsearch(line) for line in p.stdout)
-            for match in matches:
-                if match and match.group('statuscode') == '200':
-                    uri = match.group('uri')
-                    if uri.endswith('.apk'):
-                        _, apkname = os.path.split(uri)
-                        app = knownapks.getapp(apkname)
-                        if app:
-                            appid, _ = app
-                            appscount[appid] += 1
-                            # Strip the '.apk' from apkname
-                            appver = apkname[:-4]
-                            appsvercount[appver] += 1
-                        else:
-                            if not apkname in unknownapks:
-                                unknownapks.append(apkname)
+
+            # Get the date for this log - e.g. 2012-02-28
+            thisdate = os.path.basename(logfile)[7:-7]
+
+            agg_path = os.path.join(datadir, thisdate + '.json')
+            if not options.recalc and os.path.exists(agg_path):
+                # Use previously calculated aggregate data
+                with open(agg_path, 'r') as f:
+                    today = json.load(f)
+
+            else:
+                # Calculate from logs...
+
+                today = {
+                    'apps': Counter(),
+                    'appsver': Counter(),
+                    'unknown': []
+                    }
+
+                p = subprocess.Popen(["zcat", logfile], stdout=subprocess.PIPE)
+                matches = (logsearch(line) for line in p.stdout)
+                for match in matches:
+                    if match and match.group('statuscode') == '200':
+                        uri = match.group('uri')
+                        if uri.endswith('.apk'):
+                            _, apkname = os.path.split(uri)
+                            app = knownapks.getapp(apkname)
+                            if app:
+                                appid, _ = app
+                                today['apps'][appid] += 1
+                                # Strip the '.apk' from apkname
+                                appver = apkname[:-4]
+                                today['appsver'][appver] += 1
+                            else:
+                                if apkname not in today['unknown']:
+                                    today['unknown'].append(apkname)
+
+                # Save calculated aggregate data for today to cache
+                with open(agg_path, 'w') as f:
+                    json.dump(today, f)
+
+            # Add today's stats (whether cached or recalculated) to the total
+            for appid in today['apps']:
+                appscount[appid] += today['apps'][appid]
+            for appid in today['appsver']:
+                appsvercount[appid] += today['appsver'][appid]
+            for uk in today['unknown']:
+                if uk not in unknownapks:
+                    unknownapks.append(uk)
 
         # Calculate and write stats for total downloads...
         lst = []
@@ -150,7 +189,8 @@ def main():
             count = appscount[appid]
             lst.append(appid + " " + str(count))
             if config['stats_to_carbon']:
-                carbon_send('fdroid.download.' + appid.replace('.', '_'), count)
+                carbon_send('fdroid.download.' + appid.replace('.', '_'),
+                            count)
             alldownloads += count
         lst.append("ALL " + str(alldownloads))
         f = open('stats/total_downloads_app.txt', 'w')
@@ -160,7 +200,8 @@ def main():
         f.close()
 
         f = open('stats/total_downloads_app_version.txt', 'w')
-        f.write('# Total downloads by application and version, since October 2011\n')
+        f.write('# Total downloads by application and version, '
+                'since October 2011\n')
         lst = []
         for appver in appsvercount:
             count = appsvercount[appver]
@@ -196,7 +237,7 @@ def main():
             checkmode = checkmode[:12]
         if checkmode.startswith('Tags '):
             checkmode = checkmode[:4]
-        ucms[checkmode] += 1;
+        ucms[checkmode] += 1
     f = open('stats/update_check_modes.txt', 'w')
     for checkmode in ucms:
         count = ucms[checkmode]
@@ -207,7 +248,7 @@ def main():
     ctgs = Counter()
     for app in metaapps:
         for category in app['Categories']:
-            ctgs[category] += 1;
+            ctgs[category] += 1
     f = open('stats/categories.txt', 'w')
     for category in ctgs:
         count = ctgs[category]
@@ -221,7 +262,7 @@ def main():
             continue
         antifeatures = [a.strip() for a in app['AntiFeatures'].split(',')]
         for antifeature in antifeatures:
-            afs[antifeature] += 1;
+            afs[antifeature] += 1
     f = open('stats/antifeatures.txt', 'w')
     for antifeature in afs:
         count = afs[antifeature]
@@ -233,7 +274,7 @@ def main():
     licenses = Counter()
     for app in metaapps:
         license = app['License']
-        licenses[license] += 1;
+        licenses[license] += 1
     f = open('stats/licenses.txt', 'w')
     for license in licenses:
         count = licenses[license]
@@ -257,4 +298,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
