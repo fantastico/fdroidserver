@@ -6,3 +6,4 @@ host = '192.168.0.8'
 port = 27017
 db = 'sen5_app_store'
 apps = 'apps'
+indexfile = 'index.xml'

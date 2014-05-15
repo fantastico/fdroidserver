@@ -642,7 +642,7 @@ def make_index(apps, apks, repodir, archive, categories):
                                   '-alias', config['repo_keyalias'],
                                   '-keystore', config['keystore'],
                                   '-storepass:file', config['keystorepassfile']]
-                            + config['smartcardoptions'], u_newlines = False)
+                            + config['smartcardoptions'])
             if p.returncode != 0:
                 msg = "Failed to get repo pubkey!"
                 if config['keystore'] == 'NONE':
