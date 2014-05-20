@@ -91,10 +91,9 @@ def strip_tag(tag):
     return tag
 
 
-def getJson():
+def getJson(starwith):
     strip = 1
     strip_ns = 0
-    starwith = 'application'
     inputfile = readfile()
     return xml2json(inputfile, starwith, strip_ns, strip)
 

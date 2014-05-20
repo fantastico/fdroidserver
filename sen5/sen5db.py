@@ -16,7 +16,19 @@ class Sen5DB:
         if Sen5DB.client is None:
             Sen5DB.client = MongoClient(config.host, config.port, max_pool_size=max_ps)
         self.database = Sen5DB.client[config.db]
-        self.apps = self.database[config.apps]
+        self.apps = self.database['apps']
+        self.comments = self.database['comments']
+
+    def clear(self):
+        self.apps.drop()
+        self.comments.drop()
+        self.apps = self.database['apps']
+        self.comments = self.database['comments']
+
+
+def add_comment(app, db):
+    comment_id = db.comments.insert({})
+    app['comments'] = comment_id
 
 
 import pydevd
@@ -25,10 +37,13 @@ import pydevd
 def main():
     pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
     db = Sen5DB(1)
-    apps = xml2json.getJson()
+    db.clear()
+    apps = xml2json.getJson('application')
     for app in apps:
-        appbody = app['application']
-        db.apps.update({'id': appbody['id']}, appbody, upsert=True)
+        app_body = app['application']
+        add_comment(app_body, db)
+        #db.apps.update({'id': app_body['id']}, app_body, upsert=True)
+        db.apps.insert(app_body)
 
 
 if __name__ == "__main__":
