@@ -26,24 +26,39 @@ class Sen5DB:
         self.comments = self.database['comments']
 
 
-def add_comment(app, db):
-    comment_id = db.comments.insert({})
-    app['comments'] = comment_id
+    def format(self, apps):
+        result = []
+        for app in apps:
+            app = app['application']
+            app['name'] = {'default': app['name']}
+            app['desc'] = {'default': app['desc']}
+            app['comments'] = self.comments.insert({})
+            result.append(app)
+        return result
+
+
+    def save(self, apps):
+            #db.apps.update({'id': app_body['id']}, app_body, upsert=True)
+        self.apps.insert(apps)
+
+    def update(self):
+        self.clear()
+        apps = xml2json.getJson('application')
+        apps = self.format(apps)
+        self.save(apps)
 
 
 import pydevd
 
 
-def main():
+def update_db():
     pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
     db = Sen5DB(1)
-    db.clear()
-    apps = xml2json.getJson('application')
-    for app in apps:
-        app_body = app['application']
-        add_comment(app_body, db)
-        #db.apps.update({'id': app_body['id']}, app_body, upsert=True)
-        db.apps.insert(app_body)
+    db.update()
+
+
+def main():
+    update_db()
 
 
 if __name__ == "__main__":
