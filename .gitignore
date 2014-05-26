@@ -13,3 +13,4 @@ fdroidserver.egg-info/
 pylint.parseable
 /.testfiles/
 xml2json-master/
+sen5/env.sh
