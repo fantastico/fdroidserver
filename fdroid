@@ -46,8 +46,8 @@ def print_help():
         print "   " + cmd + ' '*(15-len(cmd)) + summary
     print
 
-# import pydevd
-# pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
+import pydevd
+pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
 def main():
 
     if len(sys.argv) <= 1:

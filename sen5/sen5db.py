@@ -40,7 +40,7 @@ class Sen5DB:
         return result
 
     def init_comments(self, appid):
-        return self.comments.insert({'_id': appid})
+        return self.comments.insert({'_id': appid, 'comments': []})
 
     def init_scores(self, appid):
         return self.scores.insert(
