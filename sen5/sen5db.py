@@ -62,7 +62,7 @@ import pydevd
 
 
 def update_db():
-    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
+#    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
     db = Sen5DB(1)
     db.update()
 

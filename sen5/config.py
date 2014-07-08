@@ -5,4 +5,4 @@ __author__ = 'lijiyang'
 host = '192.168.0.8'
 port = 27017
 db = 'sen5_app_store'
-indexfile = 'index.xml'
+indexfile = 'repo/index.xml'

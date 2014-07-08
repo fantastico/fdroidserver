@@ -92,6 +92,7 @@ def strip_tag(tag):
 
 
 def getJson(starwith):
+    """ starwith: the element in xml to start with when parsing """
     strip = 1
     strip_ns = 0
     inputfile = readfile()
@@ -108,8 +109,8 @@ def readfile():
 
 import pydevd
 def main():
-    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
-    js = getJson()
+#    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
+    js = getJson('application')
     print js
 
 
