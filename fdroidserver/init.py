@@ -35,6 +35,7 @@ from common import FDroidPopen, BuildException
 config = {}
 options = None
 
+
 def write_to_config(key, value):
     '''write a key/value to the local config.py'''
     with open('config.py', 'r') as f:
@@ -44,6 +45,7 @@ def write_to_config(key, value):
     data = re.sub(pattern, repl, data)
     with open('config.py', 'w') as f:
         f.writelines(data)
+
 
 def disable_in_config(key, value):
     '''write a key/value to the local config.py, then comment it out'''
@@ -59,7 +61,7 @@ def disable_in_config(key, value):
 def genpassword():
     '''generate a random password for when generating keys'''
     h = hashlib.sha256()
-    h.update(os.urandom(16)) # salt
+    h.update(os.urandom(16))  # salt
     h.update(bytes(socket.getfqdn()))
     return h.digest().encode('base64').strip()
 
@@ -70,21 +72,21 @@ def genkey(keystore, repo_keyalias, password, keydname):
     common.write_password_file("keystorepass", password)
     common.write_password_file("keypass", password)
     p = FDroidPopen(['keytool', '-genkey',
-                '-keystore', keystore, '-alias', repo_keyalias,
-                '-keyalg', 'RSA', '-keysize', '4096',
-                '-sigalg', 'SHA256withRSA',
-                '-validity', '10000',
-                '-storepass:file', config['keystorepassfile'],
-                '-keypass:file', config['keypassfile'],
-                '-dname', keydname])
+                     '-keystore', keystore, '-alias', repo_keyalias,
+                     '-keyalg', 'RSA', '-keysize', '4096',
+                     '-sigalg', 'SHA256withRSA',
+                     '-validity', '10000',
+                     '-storepass:file', config['keystorepassfile'],
+                     '-keypass:file', config['keypassfile'],
+                     '-dname', keydname])
     # TODO keypass should be sent via stdin
     if p.returncode != 0:
-        raise BuildException("Failed to generate key", p.stdout)
+        raise BuildException("Failed to generate key", p.output)
     # now show the lovely key that was just generated
     p = FDroidPopen(['keytool', '-list', '-v',
                      '-keystore', keystore, '-alias', repo_keyalias,
                      '-storepass:file', config['keystorepassfile']])
-    logging.info(p.stdout.strip() + '\n\n')
+    logging.info(p.output.strip() + '\n\n')
 
 
 def main():
@@ -116,7 +118,7 @@ def main():
         examplesdir = prefix + '/share/doc/fdroidserver/examples'
     else:
         # we're running straight out of the git repo
-        prefix = tmp
+        prefix = os.path.normpath(os.path.join(os.path.dirname(__file__), '..'))
         examplesdir = prefix + '/examples'
 
     fdroiddir = os.getcwd()
@@ -124,14 +126,19 @@ def main():
 
     # track down where the Android SDK is, the default is to use the path set
     # in ANDROID_HOME if that exists, otherwise None
-    if options.android_home != None:
+    if options.android_home is not None:
         test_config['sdk_path'] = options.android_home
     elif not common.test_sdk_exists(test_config):
         # if neither --android-home nor the default sdk_path exist, prompt the user
         default_sdk_path = '/opt/android-sdk'
         while not options.no_prompt:
-            s = raw_input('Enter the path to the Android SDK (' + default_sdk_path + ') here:\n> ')
-            if re.match('^\s*$', s) != None:
+            try:
+                s = raw_input('Enter the path to the Android SDK ('
+                              + default_sdk_path + ') here:\n> ')
+            except KeyboardInterrupt:
+                print('')
+                sys.exit(1)
+            if re.match('^\s*$', s) is not None:
                 test_config['sdk_path'] = default_sdk_path
             else:
                 test_config['sdk_path'] = s
@@ -153,18 +160,15 @@ def main():
         logging.info('Try running `fdroid init` in an empty directory.')
         sys.exit()
 
-    # now that we have a local config.py, read configuration...
-    config = common.read_config(options)
-
     # try to find a working aapt, in all the recent possible paths
-    build_tools = os.path.join(config['sdk_path'], 'build-tools')
+    build_tools = os.path.join(test_config['sdk_path'], 'build-tools')
     aaptdirs = []
-    aaptdirs.append(os.path.join(build_tools, config['build_tools']))
+    aaptdirs.append(os.path.join(build_tools, test_config['build_tools']))
     aaptdirs.append(build_tools)
-    for f in sorted(os.listdir(build_tools), reverse=True):
+    for f in os.listdir(build_tools):
         if os.path.isdir(os.path.join(build_tools, f)):
             aaptdirs.append(os.path.join(build_tools, f))
-    for d in aaptdirs:
+    for d in sorted(aaptdirs, reverse=True):
         if os.path.isfile(os.path.join(d, 'aapt')):
             aapt = os.path.join(d, 'aapt')
             break
@@ -172,9 +176,15 @@ def main():
         dirname = os.path.basename(os.path.dirname(aapt))
         if dirname == 'build-tools':
             # this is the old layout, before versioned build-tools
-            write_to_config('build_tools', '')
+            test_config['build_tools'] = ''
         else:
-            write_to_config('build_tools', dirname)
+            test_config['build_tools'] = dirname
+        write_to_config('build_tools', test_config['build_tools'])
+    if not common.test_build_tools_exists(test_config):
+        sys.exit(3)
+
+    # now that we have a local config.py, read configuration...
+    config = common.read_config(options)
 
     # track down where the Android NDK is
     ndk_path = '/opt/android-ndk'
@@ -211,7 +221,7 @@ def main():
     if options.distinguished_name:
         keydname = options.distinguished_name
         write_to_config('keydname', keydname)
-    if keystore == 'NONE': # we're using a smartcard
+    if keystore == 'NONE':  # we're using a smartcard
         write_to_config('repo_keyalias', '1')  # seems to be the default
         disable_in_config('keypass', 'never used with smartcard')
         write_to_config('smartcardoptions',
@@ -246,7 +256,7 @@ def main():
         password = genpassword()
         write_to_config('keystorepass', password)
         write_to_config('keypass', password)
-        if options.repo_keyalias == None:
+        if options.repo_keyalias is None:
             repo_keyalias = socket.getfqdn()
             write_to_config('repo_keyalias', repo_keyalias)
         if not options.distinguished_name:
@@ -260,11 +270,10 @@ def main():
     logging.info('  Android SDK Build Tools:\t' + os.path.dirname(aapt))
     logging.info('  Android NDK (optional):\t' + ndk_path)
     logging.info('  Keystore for signing key:\t' + keystore)
-    if repo_keyalias != None:
+    if repo_keyalias is not None:
         logging.info('  Alias for key in store:\t' + repo_keyalias)
     logging.info('\nTo complete the setup, add your APKs to "' +
-          os.path.join(fdroiddir, 'repo') + '"' +
-'''
+                 os.path.join(fdroiddir, 'repo') + '"' + '''
 then run "fdroid update -c; fdroid update".  You might also want to edit
 "config.py" to set the URL, repo name, and more.  You should also set up
 a signing key (a temporary one might have been automatically generated).

@@ -22,12 +22,13 @@ import traceback
 from optparse import OptionParser
 import logging
 
-import common, metadata
-from common import BuildException
-from common import VCSException
+import common
+import metadata
+from common import BuildException, VCSException
 
 config = None
 options = None
+
 
 def main():
 
@@ -45,7 +46,7 @@ def main():
 
     config = common.read_config(options)
 
-    # Get all apps...
+    # Read all app and srclib metadata
     allapps = metadata.read_metadata()
     apps = common.read_app_args(args, allapps, True)
 
@@ -80,7 +81,7 @@ def main():
 
             for thisbuild in app['builds']:
 
-                if 'disable' in thisbuild:
+                if thisbuild['disable']:
                     logging.info("...skipping version %s - %s" % (
                         thisbuild['version'], thisbuild.get('disable', thisbuild['commit'][1:])))
                 else:
@@ -88,13 +89,14 @@ def main():
 
                     # Prepare the source code...
                     root_dir, _ = common.prepare_source(vcs, app, thisbuild,
-                            build_dir, srclib_dir, extlib_dir, False)
+                                                        build_dir, srclib_dir,
+                                                        extlib_dir, False)
 
                     # Do the scan...
                     buildprobs = common.scan_source(build_dir, root_dir, thisbuild)
                     for problem in buildprobs:
-                        problems.append(problem +
-                            ' in ' + app['id'] + ' ' + thisbuild['version'])
+                        problems.append(problem + ' in ' + app['id']
+                                        + ' ' + thisbuild['version'])
 
         except BuildException as be:
             msg = "Could not scan app %s due to BuildException: %s" % (app['id'], be)
@@ -113,4 +115,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

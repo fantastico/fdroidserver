@@ -17,15 +17,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, metadata
+import common
+import metadata
+
 
 def main():
 
-    if not os.path.isdir('metadata'):
-        return
+    common.read_config(None)
 
-    metadata.read_metadata(xref=False, store=False)
+    metadata.read_metadata(xref=True)
 
 if __name__ == "__main__":
     main()
-

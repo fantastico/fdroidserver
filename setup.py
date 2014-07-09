@@ -10,7 +10,7 @@ if not os.path.exists('fdroidserver/getsig/getsig.class'):
                             shell=True)
 
 setup(name='fdroidserver',
-      version='0.1',
+      version='0.2',
       description='F-Droid Server Tools',
       long_description=open('README').read(),
       author='The F-Droid Project',
@@ -20,7 +20,7 @@ setup(name='fdroidserver',
       scripts=['fdroid', 'fd-commit'],
       data_files=[
         (sys.prefix + '/share/doc/fdroidserver/examples',
-         [ 'buildserver/config.buildserver.py',
+         ['buildserver/config.buildserver.py',
            'examples/config.py',
            'examples/makebs.config.py',
            'examples/opensc-fdroid.cfg',

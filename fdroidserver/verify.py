@@ -26,10 +26,11 @@ from optparse import OptionParser
 import logging
 
 import common
-from common import FDroidPopen
+from common import FDroidPopen, FDroidException
 
 options = None
 config = None
+
 
 def main():
 
@@ -81,7 +82,7 @@ def main():
             logging.info("...retrieving " + url)
             p = FDroidPopen(['wget', url], cwd=tmp_dir)
             if p.returncode != 0:
-                raise Exception("Failed to get " + apkfilename)
+                raise FDroidException("Failed to get " + apkfilename)
 
             thisdir = os.path.join(tmp_dir, 'this_apk')
             thatdir = os.path.join(tmp_dir, 'that_apk')
@@ -91,22 +92,23 @@ def main():
                 os.mkdir(d)
 
             if subprocess.call(['jar', 'xf',
-                os.path.join("..", "..", unsigned_dir, apkfilename)],
-                cwd=thisdir) != 0:
-                raise Exception("Failed to unpack local build of " + apkfilename)
-            if subprocess.call(['jar', 'xf', os.path.join("..", "..", remoteapk)],
-                cwd=thatdir) != 0:
-                raise Exception("Failed to unpack remote build of " + apkfilename)
+                                os.path.join("..", "..", unsigned_dir, apkfilename)],
+                               cwd=thisdir) != 0:
+                raise FDroidException("Failed to unpack local build of " + apkfilename)
+            if subprocess.call(['jar', 'xf',
+                                os.path.join("..", "..", remoteapk)],
+                               cwd=thatdir) != 0:
+                raise FDroidException("Failed to unpack remote build of " + apkfilename)
 
             p = FDroidPopen(['diff', '-r', 'this_apk', 'that_apk'], cwd=tmp_dir)
-            lines = p.stdout.splitlines()
+            lines = p.output.splitlines()
             if len(lines) != 1 or 'META-INF' not in lines[0]:
-                raise Exception("Unexpected diff output - " + p.stdout)
+                raise FDroidException("Unexpected diff output - " + p.output)
 
             logging.info("...successfully verified")
             verified += 1
 
-        except Exception, e:
+        except FDroidException, e:
             logging.info("...NOT verified - {0}".format(e))
             notverified += 1
 
@@ -116,5 +118,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

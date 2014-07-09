@@ -20,10 +20,12 @@
 import os
 from optparse import OptionParser
 import logging
-import common, metadata
+import common
+import metadata
 
 config = None
 options = None
+
 
 def main():
 
@@ -40,15 +42,14 @@ def main():
     config = common.read_config(options)
 
     # Get all apps...
-    allapps = metadata.read_metadata(xref=False)
+    allapps = metadata.read_metadata(xref=True)
     apps = common.read_app_args(args, allapps, False)
 
     for app in apps:
         logging.info("Writing " + app['id'])
-        metadata.write_metadata(os.path.join('metadata', app['id'])+'.txt', app)
+        metadata.write_metadata(os.path.join('metadata', app['id']) + '.txt', app)
 
     logging.info("Finished.")
 
 if __name__ == "__main__":
     main()
-

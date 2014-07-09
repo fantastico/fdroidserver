@@ -25,7 +25,9 @@ import urllib
 from optparse import OptionParser
 from ConfigParser import ConfigParser
 import logging
-import common, metadata
+import common
+import metadata
+
 
 # Get the repo type and address from the given web page. The page is scanned
 # in a rather naive manner for 'git clone xxxx', 'hg clone xxxx', etc, and
@@ -51,7 +53,7 @@ def getrepofrompage(url):
         return (repotype, repo)
 
     # Works for Google Code and BitBucket...
-    index=page.find('git clone')
+    index = page.find('git clone')
     if index != -1:
         repotype = 'git'
         repo = page[index + 10:]
@@ -63,7 +65,7 @@ def getrepofrompage(url):
         return (repotype, repo)
 
     # Google Code only...
-    index=page.find('svn checkout')
+    index = page.find('svn checkout')
     if index != -1:
         repotype = 'git-svn'
         repo = page[index + 13:]
@@ -74,7 +76,6 @@ def getrepofrompage(url):
         index = repo.find('<')
         if index == -1:
             return (None, "Error while getting repo address - no end tag? '" + repo + "'")
-            sys.exit(1)
         repo = repo[:index]
         index = repo.find(' ')
         if index == -1:
@@ -87,6 +88,7 @@ def getrepofrompage(url):
 
 config = None
 options = None
+
 
 def main():
 
@@ -111,7 +113,7 @@ def main():
     config = common.read_config(options)
 
     if not options.url:
-        logging.info("Specify project url.")
+        logging.error("Specify project url.")
         sys.exit(1)
     url = options.url
 
@@ -127,7 +129,7 @@ def main():
     projecttype = None
     issuetracker = None
     license = None
-    website = url #by default, we might override it
+    website = url  # by default, we might override it
     if url.startswith('git://'):
         projecttype = 'git'
         repo = url
@@ -135,13 +137,14 @@ def main():
         sourcecode = ""
         website = ""
     elif url.startswith('https://github.com'):
-        if url.endswith('/'):
-            url = url[:-1]
-        if url.endswith('.git'):
-            logging.info("A github URL should point to the project, not the git repo")
-            sys.exit(1)
         projecttype = 'github'
-        repo = url + '.git'
+        repo = url
+        repotype = 'git'
+        sourcecode = url
+        issuetracker = url + '/issues'
+    elif url.startswith('https://gitlab.com/'):
+        projecttype = 'gitlab'
+        repo = url
         repotype = 'git'
         sourcecode = url
         issuetracker = url + '/issues'
@@ -159,11 +162,12 @@ def main():
         # Figure out the repo type and adddress...
         repotype, repo = getrepofrompage(sourcecode)
         if not repotype:
-            logging.info("Unable to determine vcs type. " + repo)
+            logging.error("Unable to determine vcs type. " + repo)
             sys.exit(1)
-    elif url.startswith('http://code.google.com/p/'):
+    elif (url.startswith('http://code.google.com/p/') or
+            url.startswith('https://code.google.com/p/')):
         if not url.endswith('/'):
-            url += '/';
+            url += '/'
         projecttype = 'googlecode'
         sourcecode = url + 'source/checkout'
         if options.repo:
@@ -173,29 +177,29 @@ def main():
         # Figure out the repo type and adddress...
         repotype, repo = getrepofrompage(sourcecode)
         if not repotype:
-            logging.info("Unable to determine vcs type. " + repo)
+            logging.error("Unable to determine vcs type. " + repo)
             sys.exit(1)
 
         # Figure out the license...
         req = urllib.urlopen(url)
         if req.getcode() != 200:
-            logging.info('Unable to find project page at ' + sourcecode + ' - return code ' + str(req.getcode()))
+            logging.error('Unable to find project page at ' + sourcecode + ' - return code ' + str(req.getcode()))
             sys.exit(1)
         page = req.read()
         index = page.find('Code license')
         if index == -1:
-            logging.info("Couldn't find license data")
+            logging.error("Couldn't find license data")
             sys.exit(1)
         ltext = page[index:]
         lprefix = 'rel="nofollow">'
         index = ltext.find(lprefix)
         if index == -1:
-            logging.info("Couldn't find license text")
+            logging.error("Couldn't find license text")
             sys.exit(1)
         ltext = ltext[index + len(lprefix):]
         index = ltext.find('<')
         if index == -1:
-            logging.info("License text not formatted as expected")
+            logging.error("License text not formatted as expected")
             sys.exit(1)
         ltext = ltext[:index]
         if ltext == 'GNU GPL v3':
@@ -213,13 +217,13 @@ def main():
         elif ltext == 'New BSD License':
             license = 'NewBSD'
         else:
-            logging.info("License " + ltext + " is not recognised")
+            logging.error("License " + ltext + " is not recognised")
             sys.exit(1)
 
     if not projecttype:
-        logging.info("Unable to determine the project type.")
-        logging.info("The URL you supplied was not in one of the supported formats. Please consult")
-        logging.info("the manual for a list of supported formats, and supply one of those.")
+        logging.error("Unable to determine the project type.")
+        logging.error("The URL you supplied was not in one of the supported formats. Please consult")
+        logging.error("the manual for a list of supported formats, and supply one of those.")
         sys.exit(1)
 
     # Get a copy of the source so we can extract some info...
@@ -240,7 +244,7 @@ def main():
 
         version, vercode, package = common.parse_androidmanifests(paths)
         if not package:
-            logging.info("Couldn't find package ID")
+            logging.error("Couldn't find package ID")
             sys.exit(1)
         if not version:
             logging.warn("Couldn't find latest version name")
@@ -250,20 +254,20 @@ def main():
         spec = os.path.join(root_dir, 'buildozer.spec')
         if os.path.exists(spec):
             defaults = {'orientation': 'landscape', 'icon': '',
-                    'permissions': '', 'android.api': "18"}
+                        'permissions': '', 'android.api': "18"}
             bconfig = ConfigParser(defaults, allow_no_value=True)
             bconfig.read(spec)
             package = bconfig.get('app', 'package.domain') + '.' + bconfig.get('app', 'package.name')
             version = bconfig.get('app', 'version')
             vercode = None
         else:
-            logging.info("No android or kivy project could be found. Specify --subdir?")
+            logging.error("No android or kivy project could be found. Specify --subdir?")
             sys.exit(1)
 
     # Make sure it's actually new...
     for app in apps:
         if app['id'] == package:
-            logging.info("Package " + package + " already exists")
+            logging.error("Package " + package + " already exists")
             sys.exit(1)
 
     # Construct the metadata...
@@ -281,14 +285,20 @@ def main():
 
     # Create a build line...
     build = {}
-    build['version'] = version if version else '?'
-    build['vercode'] = vercode if vercode else '?'
+    build['version'] = version or '?'
+    build['vercode'] = vercode or '?'
     build['commit'] = '?'
     build['disable'] = 'Generated by import.py - check/set version fields and commit id'
     if options.subdir:
         build['subdir'] = options.subdir
     if os.path.exists(os.path.join(root_dir, 'jni')):
         build['buildjni'] = ['yes']
+
+    for flag, value in metadata.flag_defaults.iteritems():
+        if flag in build:
+            continue
+        build[flag] = value
+
     app['builds'].append(build)
 
     # Keep the repo directory to save bandwidth...
@@ -305,4 +315,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

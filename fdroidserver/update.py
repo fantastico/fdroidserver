@@ -32,28 +32,35 @@ import time
 from PIL import Image
 import logging
 
-import common, metadata
-from common import FDroidPopen
+import common
+import metadata
+from common import FDroidPopen, SilentPopen
 from metadata import MetaDataException
+
 
 def get_densities():
     return ['640', '480', '320', '240', '160', '120']
 
+
 def dpi_to_px(density):
     return (int(density) * 48) / 160
 
+
 def px_to_dpi(px):
     return (int(px) * 160) / 48
+
 
 def get_icon_dir(repodir, density):
     if density is None:
         return os.path.join(repodir, "icons")
     return os.path.join(repodir, "icons-%s" % density)
 
+
 def get_icon_dirs(repodir):
     for density in get_densities():
         yield get_icon_dir(repodir, density)
     yield os.path.join(repodir, "icons")
+
 
 def update_wiki(apps, apks):
     """Update the wiki
@@ -66,7 +73,7 @@ def update_wiki(apps, apks):
     wikiredircat = 'App Redirects'
     import mwclient
     site = mwclient.Site((config['wiki_protocol'], config['wiki_server']),
-            path=config['wiki_path'])
+                         path=config['wiki_path'])
     site.login(config['wiki_user'], config['wiki_password'])
     generated_pages = {}
     generated_redirects = {}
@@ -77,21 +84,21 @@ def update_wiki(apps, apks):
         if app['AntiFeatures']:
             for af in app['AntiFeatures'].split(','):
                 wikidata += '{{AntiFeature|' + af + '}}\n'
-        wikidata += '{{App|id=%s|name=%s|added=%s|lastupdated=%s|source=%s|tracker=%s|web=%s|donate=%s|flattr=%s|bitcoin=%s|litecoin=%s|dogecoin=%s|license=%s|root=%s}}\n'%(
-                app['id'],
-                app['Name'],
-                time.strftime('%Y-%m-%d', app['added']) if 'added' in app else '',
-                time.strftime('%Y-%m-%d', app['lastupdated']) if 'lastupdated' in app else '',
-                app['Source Code'],
-                app['Issue Tracker'],
-                app['Web Site'],
-                app['Donate'],
-                app['FlattrID'],
-                app['Bitcoin'],
-                app['Litecoin'],
-                app['Dogecoin'],
-                app['License'],
-                app.get('Requires Root', 'No'))
+        wikidata += '{{App|id=%s|name=%s|added=%s|lastupdated=%s|source=%s|tracker=%s|web=%s|donate=%s|flattr=%s|bitcoin=%s|litecoin=%s|dogecoin=%s|license=%s|root=%s}}\n' % (
+            app['id'],
+            app['Name'],
+            time.strftime('%Y-%m-%d', app['added']) if 'added' in app else '',
+            time.strftime('%Y-%m-%d', app['lastupdated']) if 'lastupdated' in app else '',
+            app['Source Code'],
+            app['Issue Tracker'],
+            app['Web Site'],
+            app['Donate'],
+            app['FlattrID'],
+            app['Bitcoin'],
+            app['Litecoin'],
+            app['Dogecoin'],
+            app['License'],
+            app.get('Requires Root', 'No'))
 
         if app['Provides']:
             wikidata += "This app provides: %s" % ', '.join(app['Summary'].split(','))
@@ -119,15 +126,14 @@ def update_wiki(apps, apks):
                 apklist.append(apk)
         # Include ones we can't build, as a special case...
         for thisbuild in app['builds']:
-            if 'disable' in thisbuild:
+            if thisbuild['disable']:
                 if thisbuild['vercode'] == app['Current Version Code']:
                     cantupdate = True
-                apklist.append({
-                        #TODO: Nasty: vercode is a string in the build, and an int elsewhere
-                        'versioncode': int(thisbuild['vercode']),
-                        'version': thisbuild['version'],
-                        'buildproblem': thisbuild['disable']
-                    })
+                # TODO: Nasty: vercode is a string in the build, and an int elsewhere
+                apklist.append({'versioncode': int(thisbuild['vercode']),
+                                'version': thisbuild['version'],
+                                'buildproblem': thisbuild['disable']
+                                })
             else:
                 builtit = False
                 for apk in apklist:
@@ -136,11 +142,10 @@ def update_wiki(apps, apks):
                         break
                 if not builtit:
                     buildfails = True
-                    apklist.append({
-                            'versioncode': int(thisbuild['vercode']),
-                            'version': thisbuild['version'],
-                            'buildproblem': "The build for this version appears to have failed. Check the [[{0}/lastbuild|build log]].".format(app['id'])
-                        })
+                    apklist.append({'versioncode': int(thisbuild['vercode']),
+                                    'version': thisbuild['version'],
+                                    'buildproblem': "The build for this version appears to have failed. Check the [[{0}/lastbuild|build log]].".format(app['id'])
+                                    })
         if app['Current Version Code'] == '0':
             cantupdate = True
         # Sort with most recent first...
@@ -214,7 +219,8 @@ def update_wiki(apps, apks):
         # Drop double spaces caused mostly by replacing ':' above
         apppagename = apppagename.replace('  ', ' ')
         for expagename in site.allpages(prefix=apppagename,
-                filterredir='nonredirects', generator=False):
+                                        filterredir='nonredirects',
+                                        generator=False):
             if expagename == apppagename:
                 noclobber = True
         # Another reason not to make the redirect page is if the app name
@@ -228,7 +234,7 @@ def update_wiki(apps, apks):
             generated_redirects[apppagename] = "#REDIRECT [[" + pagename + "]]\n[[Category:" + wikiredircat + "]]"
 
     for tcat, genp in [(wikicat, generated_pages),
-            (wikiredircat, generated_redirects)]:
+                       (wikiredircat, generated_redirects)]:
         catpages = site.Pages['Category:' + tcat]
         existingpages = []
         for page in catpages:
@@ -245,7 +251,7 @@ def update_wiki(apps, apks):
                 page.delete('No longer published')
         for pagename, text in genp.items():
             logging.debug("Checking " + pagename)
-            if not pagename in existingpages:
+            if pagename not in existingpages:
                 logging.debug("Creating page " + pagename)
                 try:
                     newpage = site.Pages[pagename]
@@ -256,6 +262,7 @@ def update_wiki(apps, apks):
     # Purge server cache to ensure counts are up to date
     site.pages['Repository Maintenance'].purge()
 
+
 def delete_disabled_builds(apps, apkcache, repodirs):
     """Delete disabled build outputs.
 
@@ -265,7 +272,7 @@ def delete_disabled_builds(apps, apkcache, repodirs):
     """
     for app in apps:
         for build in app['builds']:
-            if 'disable' in build:
+            if build['disable']:
                 apkfilename = app['id'] + '_' + str(build['vercode']) + '.apk'
                 for repodir in repodirs:
                     apkpath = os.path.join(repodir, apkfilename)
@@ -276,6 +283,7 @@ def delete_disabled_builds(apps, apkcache, repodirs):
                             os.remove(name)
                 if apkfilename in apkcache:
                     del apkcache[apkfilename]
+
 
 def resize_icon(iconpath, density):
 
@@ -293,11 +301,9 @@ def resize_icon(iconpath, density):
                 iconpath, oldsize, im.size))
             im.save(iconpath, "PNG")
 
-        else:
-            logging.info("%s is small enough: %s" % im.size)
-
-    except Exception,e:
+    except Exception, e:
         logging.error("Failed resizing {0} - {1}".format(iconpath, e))
+
 
 def resize_all_icons(repodirs):
     """Resize all icons that exceed the max size
@@ -310,6 +316,7 @@ def resize_all_icons(repodirs):
             icon_glob = os.path.join(icon_dir, '*.png')
             for iconpath in glob.glob(icon_glob):
                 resize_icon(iconpath, density)
+
 
 def scan_apks(apps, apkcache, repodir, knownapks):
     """Scan the apks in the given repo directory.
@@ -348,7 +355,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
 
         apkfilename = apkfile[len(repodir) + 1:]
         if ' ' in apkfilename:
-            logging.error("No spaces in APK filenames!")
+            logging.critical("Spaces in filenames are not allowed.")
             sys.exit(1)
 
         if apkfilename in apkcache:
@@ -356,8 +363,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
             thisinfo = apkcache[apkfilename]
 
         else:
-
-            logging.info("Processing " + apkfilename)
+            logging.debug("Processing " + apkfilename)
             thisinfo = {}
             thisinfo['apkname'] = apkfilename
             srcfilename = apkfilename[:-4] + "_src.tar.gz"
@@ -368,20 +374,25 @@ def scan_apks(apps, apkcache, repodir, knownapks):
             thisinfo['features'] = []
             thisinfo['icons_src'] = {}
             thisinfo['icons'] = {}
-            p = FDroidPopen([os.path.join(config['sdk_path'],
-                        'build-tools', config['build_tools'], 'aapt'),
-                    'dump', 'badging', apkfile])
+            p = SilentPopen([config['aapt'], 'dump', 'badging', apkfile])
             if p.returncode != 0:
-                logging.critical("Failed to get apk information")
-                sys.exit(1)
-            for line in p.stdout.splitlines():
+                if options.delete_unknown:
+                    if os.path.exists(apkfile):
+                        logging.error("Failed to get apk information, deleting " + apkfile)
+                        os.remove(apkfile)
+                    else:
+                        logging.error("Could not find {0} to remove it".format(apkfile))
+                else:
+                    logging.error("Failed to get apk information, skipping " + apkfile)
+                continue
+            for line in p.output.splitlines():
                 if line.startswith("package:"):
                     try:
                         thisinfo['id'] = re.match(name_pat, line).group(1)
                         thisinfo['versioncode'] = int(re.match(vercode_pat, line).group(1))
                         thisinfo['version'] = re.match(vername_pat, line).group(1)
                     except Exception, e:
-                        logging.info("Package matching failed: " + str(e))
+                        logging.error("Package matching failed: " + str(e))
                         logging.info("Line was: " + line)
                         sys.exit(1)
                 elif line.startswith("application:"):
@@ -392,6 +403,8 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                         thisinfo['icons_src']['-1'] = match.group(1)
                 elif line.startswith("launchable-activity:"):
                     # Only use launchable-activity as fallback to application
+                    if not thisinfo['name']:
+                        thisinfo['name'] = re.match(label_pat, line).group(1)
                     if '-1' not in thisinfo['icons_src']:
                         match = re.match(icon_pat_nodpi, line)
                         if match:
@@ -403,7 +416,12 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                         path = match.group(2)
                         thisinfo['icons_src'][density] = path
                 elif line.startswith("sdkVersion:"):
-                    thisinfo['sdkversion'] = re.match(sdkversion_pat, line).group(1)
+                    m = re.match(sdkversion_pat, line)
+                    if m is None:
+                        logging.error(line.replace('sdkVersion:', '')
+                                      + ' is not a valid minSdkVersion!')
+                    else:
+                        thisinfo['sdkversion'] = m.group(1)
                 elif line.startswith("maxSdkVersion:"):
                     thisinfo['maxsdkversion'] = re.match(sdkversion_pat, line).group(1)
                 elif line.startswith("native-code:"):
@@ -417,21 +435,21 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                     thisinfo['permissions'].append(perm)
                 elif line.startswith("uses-feature:"):
                     perm = re.match(string_pat, line).group(1)
-                    #Filter out this, it's only added with the latest SDK tools and
-                    #causes problems for lots of apps.
-                    if (perm != "android.hardware.screen.portrait" and
-                        perm != "android.hardware.screen.landscape"):
+                    # Filter out this, it's only added with the latest SDK tools and
+                    # causes problems for lots of apps.
+                    if perm != "android.hardware.screen.portrait" \
+                            and perm != "android.hardware.screen.landscape":
                         if perm.startswith("android.feature."):
                             perm = perm[16:]
                         thisinfo['features'].append(perm)
 
-            if not 'sdkversion' in thisinfo:
+            if 'sdkversion' not in thisinfo:
                 logging.warn("no SDK version information found")
                 thisinfo['sdkversion'] = 0
 
             # Check for debuggable apks...
             if common.isApkDebuggable(apkfile, config):
-                logging.warn("{0} is debuggable... {1}".format(apkfile, line))
+                logging.warn('{0} is set to android:debuggable="true"!'.format(apkfile))
 
             # Calculate the sha256...
             sha = hashlib.sha256()
@@ -449,17 +467,17 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                 logging.critical("getsig.class not found. To fix: cd '%s' && ./make.sh" % getsig_dir)
                 sys.exit(1)
             p = FDroidPopen(['java', '-cp', os.path.join(os.path.dirname(__file__), 'getsig'),
-                        'getsig', os.path.join(os.getcwd(), apkfile)])
-            if p.returncode != 0 or not p.stdout.startswith('Result:'):
+                             'getsig', os.path.join(os.getcwd(), apkfile)])
+            if p.returncode != 0 or not p.output.startswith('Result:'):
                 logging.critical("Failed to get apk signature")
                 sys.exit(1)
-            thisinfo['sig'] = p.stdout[7:].strip()
+            thisinfo['sig'] = p.output[7:].strip()
 
             apk = zipfile.ZipFile(apkfile, 'r')
 
             iconfilename = "%s.%s.png" % (
-                    thisinfo['id'],
-                    thisinfo['versioncode'])
+                thisinfo['id'],
+                thisinfo['versioncode'])
 
             # Extract the icon file...
             densities = get_densities()
@@ -476,7 +494,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                     iconfile = open(icondest, 'wb')
                     iconfile.write(apk.read(iconsrc))
                     iconfile.close()
-                    thisinfo['icons'][density] = iconfilename 
+                    thisinfo['icons'][density] = iconfilename
 
                 except:
                     logging.warn("Error retrieving icon file")
@@ -487,7 +505,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
             if '-1' in thisinfo['icons_src']:
                 iconsrc = thisinfo['icons_src']['-1']
                 iconpath = os.path.join(
-                        get_icon_dir(repodir, None), iconfilename)
+                    get_icon_dir(repodir, None), iconfilename)
                 iconfile = open(iconpath, 'wb')
                 iconfile.write(apk.read(iconsrc))
                 iconfile.close()
@@ -500,10 +518,10 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                         if density == densities[-1] or dpi >= int(density):
                             thisinfo['icons'][density] = iconfilename
                             shutil.move(iconpath,
-                                    os.path.join(get_icon_dir(repodir, density), iconfilename))
+                                        os.path.join(get_icon_dir(repodir, density), iconfilename))
                             empty_densities.remove(density)
                             break
-                except Exception,e:
+                except Exception, e:
                     logging.warn("Failed reading {0} - {1}".format(iconpath, e))
 
             if thisinfo['icons']:
@@ -519,13 +537,13 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                     continue
                 if last_density is None:
                     continue
-                logging.info("Density %s not available, resizing down from %s" % (
-                        density, last_density))
+                logging.debug("Density %s not available, resizing down from %s"
+                              % (density, last_density))
 
                 last_iconpath = os.path.join(
-                        get_icon_dir(repodir, last_density), iconfilename)
+                    get_icon_dir(repodir, last_density), iconfilename)
                 iconpath = os.path.join(
-                        get_icon_dir(repodir, density), iconfilename)
+                    get_icon_dir(repodir, density), iconfilename)
                 try:
                     im = Image.open(last_iconpath)
                 except:
@@ -546,12 +564,12 @@ def scan_apks(apps, apkcache, repodir, knownapks):
                     continue
                 if last_density is None:
                     continue
-                logging.info("Density %s not available, copying from lower density %s" % (
-                        density, last_density))
+                logging.debug("Density %s not available, copying from lower density %s"
+                              % (density, last_density))
 
                 shutil.copyfile(
-                        os.path.join(get_icon_dir(repodir, last_density), iconfilename),
-                        os.path.join(get_icon_dir(repodir, density), iconfilename))
+                    os.path.join(get_icon_dir(repodir, last_density), iconfilename),
+                    os.path.join(get_icon_dir(repodir, density), iconfilename))
 
                 empty_densities.remove(density)
 
@@ -564,7 +582,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
             baseline = os.path.join(get_icon_dir(repodir, '160'), iconfilename)
             if os.path.isfile(baseline):
                 shutil.copyfile(baseline,
-                        os.path.join(get_icon_dir(repodir, None), iconfilename))
+                                os.path.join(get_icon_dir(repodir, None), iconfilename))
 
             # Record in known apks, getting the added date at the same time..
             added = knownapks.recordapk(thisinfo['apkname'], thisinfo['id'])
@@ -580,6 +598,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
 
 
 repo_pubkey_fingerprint = None
+
 
 def make_index(apps, apks, repodir, archive, categories):
     """Make a repo index.
@@ -598,6 +617,7 @@ def make_index(apps, apks, repodir, archive, categories):
         el = doc.createElement(name)
         el.appendChild(doc.createTextNode(value))
         parent.appendChild(el)
+
     def addElementCDATA(name, value, doc, parent):
         el = doc.createElement(name)
         el.appendChild(doc.createCDATASection(value))
@@ -639,10 +659,10 @@ def make_index(apps, apks, repodir, archive, categories):
 
         def extract_pubkey():
             p = FDroidPopen(['keytool', '-exportcert',
-                                  '-alias', config['repo_keyalias'],
-                                  '-keystore', config['keystore'],
-                                  '-storepass:file', config['keystorepassfile']]
-                            + config['smartcardoptions'])
+                             '-alias', config['repo_keyalias'],
+                             '-keystore', config['keystore'],
+                             '-storepass:file', config['keystorepassfile']]
+                            + config['smartcardoptions'], output=False)
             if p.returncode != 0:
                 msg = "Failed to get repo pubkey!"
                 if config['keystore'] == 'NONE':
@@ -650,8 +670,8 @@ def make_index(apps, apks, repodir, archive, categories):
                 logging.critical(msg)
                 sys.exit(1)
             global repo_pubkey_fingerprint
-            repo_pubkey_fingerprint = cert_fingerprint(p.stdout)
-            return "".join("%02x" % ord(b) for b in p.stdout)
+            repo_pubkey_fingerprint = cert_fingerprint(p.output)
+            return "".join("%02x" % ord(b) for b in p.output)
 
         repoel.setAttribute("pubkey", extract_pubkey())
 
@@ -684,13 +704,15 @@ def make_index(apps, apks, repodir, archive, categories):
         addElement('summary', app['Summary'], doc, apel)
         if app['icon']:
             addElement('icon', app['icon'], doc, apel)
+
         def linkres(link):
             for app in apps:
                 if app['id'] == link:
                     return ("fdroid.app:" + link, app['Name'])
             raise MetaDataException("Cannot resolve app id " + link)
         addElement('desc',
-                metadata.description_html(app['Description'], linkres), doc, apel)
+                   metadata.description_html(app['Description'], linkres),
+                   doc, apel)
         addElement('license', app['License'], doc, apel)
         if 'Categories' in app:
             addElement('categories', ','.join(app["Categories"]), doc, apel)
@@ -740,9 +762,9 @@ def make_index(apps, apks, repodir, archive, categories):
 
         # Check for duplicates - they will make the client unhappy...
         for i in range(len(apklist) - 1):
-            if apklist[i]['versioncode'] == apklist[i+1]['versioncode']:
+            if apklist[i]['versioncode'] == apklist[i + 1]['versioncode']:
                 logging.critical("duplicate versions: '%s' - '%s'" % (
-                    apklist[i]['apkname'], apklist[i+1]['apkname']))
+                    apklist[i]['apkname'], apklist[i + 1]['apkname']))
                 sys.exit(1)
 
         for apk in apklist:
@@ -754,7 +776,7 @@ def make_index(apps, apks, repodir, archive, categories):
             if 'srcname' in apk:
                 addElement('srcname', apk['srcname'], doc, apkel)
             for hash_type in ['sha256']:
-                if not hash_type in apk:
+                if hash_type not in apk:
                     continue
                 hashel = doc.createElement("hash")
                 hashel.setAttribute("type", hash_type)
@@ -788,10 +810,10 @@ def make_index(apps, apks, repodir, archive, categories):
 
     if 'repo_keyalias' in config:
 
-        logging.info("Creating signed index with this key:")
-        logging.info("SHA256: %s" % repo_pubkey_fingerprint)
+        logging.info("Creating signed index with this key (SHA256):")
+        logging.info("%s" % repo_pubkey_fingerprint)
 
-        #Create a jar of the index...
+        # Create a jar of the index...
         p = FDroidPopen(['jar', 'cf', 'index.jar', 'index.xml'], cwd=repodir)
         if p.returncode != 0:
             logging.critical("Failed to create jar file")
@@ -809,11 +831,11 @@ def make_index(apps, apks, repodir, archive, categories):
         p = FDroidPopen(args)
         # TODO keypass should be sent via stdin
         if p.returncode != 0:
-            logging.info("Failed to sign index")
+            logging.critical("Failed to sign index")
             sys.exit(1)
 
     # Copy the repo icon into the repo directory...
-    icon_dir = os.path.join(repodir ,'icons')
+    icon_dir = os.path.join(repodir, 'icons')
     iconfilename = os.path.join(icon_dir, os.path.basename(config['repo_icon']))
     shutil.copyfile(config['repo_icon'], iconfilename)
 
@@ -824,7 +846,6 @@ def make_index(apps, apks, repodir, archive, categories):
     f = open(os.path.join(repodir, 'categories.txt'), 'w')
     f.write(catdata)
     f.close()
-
 
 
 def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversions):
@@ -849,10 +870,16 @@ def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversi
             for apk in apklist[keepversions:]:
                 logging.info("Moving " + apk['apkname'] + " to archive")
                 shutil.move(os.path.join(repodir, apk['apkname']),
-                    os.path.join(archivedir, apk['apkname']))
+                            os.path.join(archivedir, apk['apkname']))
                 if 'srcname' in apk:
                     shutil.move(os.path.join(repodir, apk['srcname']),
-                        os.path.join(archivedir, apk['srcname']))
+                                os.path.join(archivedir, apk['srcname']))
+                    # Move GPG signature too...
+                    sigfile = apk['srcname'] + '.asc'
+                    sigsrc = os.path.join(repodir, sigfile)
+                    if os.path.exists(sigsrc):
+                        shutil.move(sigsrc, os.path.join(archivedir, sigfile))
+
                 archapks.append(apk)
                 apks.remove(apk)
 
@@ -860,14 +887,17 @@ def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversi
 config = None
 options = None
 
+
 def main():
 
     global config, options
 
     # Parse command line...
     parser = OptionParser()
-    parser.add_option("-c", "--createmeta", action="store_true", default=False,
+    parser.add_option("-c", "--create-metadata", action="store_true", default=False,
                       help="Create skeleton metadata files that are missing")
+    parser.add_option("--delete-unknown", action="store_true", default=False,
+                      help="Delete APKs without metadata from the repo")
     parser.add_option("-v", "--verbose", action="store_true", default=False,
                       help="Spew out even more information than normal")
     parser.add_option("-q", "--quiet", action="store_true", default=False,
@@ -879,8 +909,8 @@ def main():
     parser.add_option("-I", "--icons", action="store_true", default=False,
                       help="Resize all the icons exceeding the max pixel size and exit")
     parser.add_option("-e", "--editor", default="/etc/alternatives/editor",
-                      help="Specify editor to use in interactive mode. Default "+
-                          "is /etc/alternatives/editor")
+                      help="Specify editor to use in interactive mode. Default " +
+                      "is /etc/alternatives/editor")
     parser.add_option("-w", "--wiki", default=False, action="store_true",
                       help="Update the wiki")
     parser.add_option("", "--pretty", action="store_true", default=False,
@@ -900,6 +930,13 @@ def main():
     if options.icons:
         resize_all_icons(repodirs)
         sys.exit(0)
+
+    # check that icons exist now, rather than fail at the end of `fdroid update`
+    for k in ['repo_icon', 'archive_icon']:
+        if k in config:
+            if not os.path.exists(config[k]):
+                logging.critical(k + ' "' + config[k] + '" does not exist! Correct it in config.py.')
+                sys.exit(1)
 
     # Get all apps...
     apps = metadata.read_metadata()
@@ -928,6 +965,48 @@ def main():
     apks, cc = scan_apks(apps, apkcache, repodirs[0], knownapks)
     if cc:
         cachechanged = True
+
+    # Generate warnings for apk's with no metadata (or create skeleton
+    # metadata files, if requested on the command line)
+    newmetadata = False
+    for apk in apks:
+        found = False
+        for app in apps:
+            if app['id'] == apk['id']:
+                found = True
+                break
+        if not found:
+            if options.create_metadata:
+                if 'name' not in apk:
+                    logging.error(apk['id'] + ' does not have a name! Skipping...')
+                    continue
+                f = open(os.path.join('metadata', apk['id'] + '.txt'), 'w')
+                f.write("License:Unknown\n")
+                f.write("Web Site:\n")
+                f.write("Source Code:\n")
+                f.write("Issue Tracker:\n")
+                f.write("Summary:" + apk['name'] + "\n")
+                f.write("Description:\n")
+                f.write(apk['name'] + "\n")
+                f.write(".\n")
+                f.close()
+                logging.info("Generated skeleton metadata for " + apk['id'])
+                newmetadata = True
+            else:
+                msg = apk['apkname'] + " (" + apk['id'] + ") has no metadata!"
+                if options.delete_unknown:
+                    logging.warn(msg + "\n\tdeleting: repo/" + apk['apkname'])
+                    rmf = os.path.join(repodirs[0], apk['apkname'])
+                    if not os.path.exists(rmf):
+                        logging.error("Could not find {0} to remove it".format(rmf))
+                    else:
+                        os.remove(rmf)
+                else:
+                    logging.warn(msg + "\n\tUse `fdroid update -c` to create it.")
+
+    # update the metadata with the newly created ones included
+    if newmetadata:
+        apps = metadata.read_metadata()
 
     # Scan the archive repo for apks as well
     if len(repodirs) > 1:
@@ -981,35 +1060,6 @@ def main():
     # name comes from there!)
     apps = sorted(apps, key=lambda app: app['Name'].upper())
 
-    # Generate warnings for apk's with no metadata (or create skeleton
-    # metadata files, if requested on the command line)
-    for apk in apks:
-        found = False
-        for app in apps:
-            if app['id'] == apk['id']:
-                found = True
-                break
-        if not found:
-            if options.createmeta:
-                f = open(os.path.join('metadata', apk['id'] + '.txt'), 'w')
-                f.write("License:Unknown\n")
-                f.write("Web Site:\n")
-                f.write("Source Code:\n")
-                f.write("Issue Tracker:\n")
-                f.write("Summary:" + apk['name'] + "\n")
-                f.write("Description:\n")
-                f.write(apk['name'] + "\n")
-                f.write(".\n")
-                f.close()
-                logging.info("Generated skeleton metadata for " + apk['id'])
-            else:
-                logging.warn(apk['apkname'] + " (" + apk['id'] + ") has no metadata - removing")
-                rmf = os.path.join(repodirs[0], apk['apkname'])
-                if not os.path.exists(rmf):
-                    logging.error("Could not find {0} to remove it".format(rmf))
-                else:
-                    os.remove(rmf)
-
     if len(repodirs) > 1:
         archive_old_apks(apps, apks, archapks, repodirs[0], repodirs[1], config['archive_older'])
 
@@ -1055,4 +1105,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

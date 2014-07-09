@@ -101,7 +101,7 @@ def getJson(starwith):
 
 def readfile():
     try:
-        inputstream = open(config.indexfile)
+        inputstream = open(config.repo_path + config.indexfile)
     except:
         sys.stderr.write("Problem reading '{0}'\n", config.indexfile)
         sys.exit(-1)

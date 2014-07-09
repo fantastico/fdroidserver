@@ -1,22 +1,36 @@
 #!/bin/bash
 
-set -e
-set -x
+set -e # quit script on error
+set -x # show each command as it is executed
 
-copy_apks_into_repo() {
-    for f in `ls -1 ../../*/bin/*.apk`; do
-        name=$(basename $(dirname `dirname $f`))
-        echo "name $name"
-        apk=`aapt d badging "$f" | sed -n "s,^package: name='\(.*\)' versionCode='\([0-9][0-9]*\)' .*,\1_\2.apk,p"`
-        echo "apk $apk"
-        cp -f $f $1/repo/$apk
-    done
+echo_header() {
+    echo "=============================================================================="
+    echo $1
 }
 
+copy_apks_into_repo() {
+    set +x
+    for f in `find $APKDIR -name '*.apk' | grep -F -v -e unaligned -e unsigned`; do
+        name=$(basename $(dirname `dirname $f`))
+        apk=`$aapt dump badging "$f" | sed -n "s,^package: name='\(.*\)' versionCode='\([0-9][0-9]*\)' .*,\1_\2.apk,p"`
+        test $f -nt repo/$apk && rm -f repo/$apk  # delete existing if $f is newer
+        if [ ! -e repo/$apk ] && [ ! -e archive/$apk ]; then
+            echo "$f --> repo/$apk"
+            ln $f $1/repo/$apk || \
+                rsync -axv $f $1/repo/$apk # rsync if hard link is not possible
+        fi
+    done
+    set -x
+}
+
+# keep this as an old version to test the automatic parsing of build-tools
+# verion numbers in `fdroid init`
 create_fake_android_home() {
+    mkdir $1/tools
+    mkdir $1/platform-tools
     mkdir $1/build-tools
-    mkdir $1/build-tools/19.0.1
-    touch $1/build-tools/19.0.1/aapt
+    mkdir $1/build-tools/19.0.2
+    touch $1/build-tools/19.0.2/aapt
 }
 
 create_test_dir() {
@@ -29,6 +43,27 @@ create_test_file() {
     mktemp --tmpdir=$WORKSPACE/.testfiles
 }
 
+#------------------------------------------------------------------------------#
+# "main"
+
+if [ $1 = "-h" ] || [ $1 = "--help" ]; then
+    set +x
+    echo "Usage: $0 '/path/to/folder/with/apks'"
+    exit 1
+fi
+
+if [ -z $ANDROID_HOME ]; then
+    echo "ANDROID_HOME must be set with the path to the Android SDK, i.e.: "
+    echo "  export ANDROID_HOME=/opt/android-sdk"
+    exit 1
+fi
+
+if [ -z $1 ]; then
+    APKDIR=`pwd`
+else
+    APKDIR=$1
+fi
+
 if [ -z $WORKSPACE ]; then
     WORKSPACE=`dirname $(pwd)`
     echo "Setting Workspace to $WORKSPACE"
@@ -39,15 +74,92 @@ if [ -z $fdroid ]; then
     fdroid="$WORKSPACE/fdroid"
 fi
 
+# allow the location of aapt to be overridden
+if [ -z $aapt ]; then
+    aapt=`ls -1 $ANDROID_HOME/build-tools/*/aapt | sort | tail -1`
+fi
+
+# allow the location of python to be overridden
+if [ -z $python ]; then
+    python=python2
+fi
+
+
 #------------------------------------------------------------------------------#
-echo "setup a new repo from scratch using ANDROID_HOME"
+echo_header "run commit hooks"
+
+cd $WORKSPACE
+./hooks/pre-commit
+
+
+#------------------------------------------------------------------------------#
+echo_header "create a source tarball and use that to build a repo"
+
+cd $WORKSPACE
+$python setup.py sdist
+
+REPOROOT=`create_test_dir`
+cd $REPOROOT
+tar xzf `ls -1 $WORKSPACE/dist/fdroidserver-*.tar.gz | sort -n | tail -1`
+cd $REPOROOT/fdroidserver-*/fdroidserver/getsig
+./make.sh
+cd $REPOROOT
+./fdroidserver-*/fdroid init
+copy_apks_into_repo $REPOROOT
+./fdroidserver-*/fdroid update --create-metadata
+
+
+#------------------------------------------------------------------------------#
+echo_header "test config checks of local_copy_dir"
+
+REPOROOT=`create_test_dir`
+cd $REPOROOT
+$fdroid init
+$fdroid update --create-metadata
+$fdroid server update --local-copy-dir=/tmp/fdroid
+
+# now test the errors work
+set +e
+$fdroid server update --local-copy-dir=thisisnotanabsolutepath
+if [ $? -eq 0 ]; then
+    echo "This should have failed because thisisnotanabsolutepath is not an absolute path!"
+    exit 1
+else
+    echo "testing absolute path checker passed"
+fi
+$fdroid server update --local-copy-dir=/tmp/IReallyDoubtThisPathExistsasdfasdf
+if [ $? -eq 0 ]; then
+    echo "This should have failed because the path does not end with 'fdroid'!"
+    exit 1
+else
+    echo "testing dirname exists checker passed"
+fi
+$fdroid server update --local-copy-dir=/tmp/IReallyDoubtThisPathExistsasdfasdf/fdroid
+if [ $? -eq 0 ]; then
+    echo "This should have failed because the dirname path does not exist!"
+    exit 1
+else
+    echo "testing dirname exists checker passed"
+fi
+set -e
+
+
+#------------------------------------------------------------------------------#
+echo_header "setup a new repo from scratch using ANDROID_HOME and do a local sync"
 
 REPOROOT=`create_test_dir`
 cd $REPOROOT
 $fdroid init
 copy_apks_into_repo $REPOROOT
-$fdroid update -c
-$fdroid update
+$fdroid update --create-metadata
+grep -F '<application id=' repo/index.xml
+
+LOCALCOPYDIR=`create_test_dir`/fdroid
+$fdroid server update --local-copy-dir=$LOCALCOPYDIR
+NEWREPOROOT=`create_test_dir`
+cd $NEWREPOROOT
+$fdroid init
+$fdroid server update --local-copy-dir=$LOCALCOPYDIR --sync-from-local-copy-dir
 
 
 #------------------------------------------------------------------------------#
@@ -76,7 +188,33 @@ set -e
 
 
 #------------------------------------------------------------------------------#
-echo "check that --android-home overrides ANDROID_HOME"
+echo_header "check that fake android home passes 'fdroid init'"
+
+REPOROOT=`create_test_dir`
+FAKE_ANDROID_HOME=`create_test_dir`
+create_fake_android_home $FAKE_ANDROID_HOME
+KEYSTORE=$REPOROOT/keystore.jks
+cd $REPOROOT
+$fdroid init --keystore $KEYSTORE --android-home $FAKE_ANDROID_HOME
+
+
+#------------------------------------------------------------------------------#
+echo_header "check that 'fdroid init' fails when build-tools cannot be found"
+
+REPOROOT=`create_test_dir`
+FAKE_ANDROID_HOME=`create_test_dir`
+create_fake_android_home $FAKE_ANDROID_HOME
+rm -f $FAKE_ANDROID_HOME/build-tools/*/aapt
+KEYSTORE=$REPOROOT/keystore.jks
+cd $REPOROOT
+set +e
+$fdroid init --keystore $KEYSTORE --android-home $FAKE_ANDROID_HOME
+[ $? -eq 0 ] && exit 1
+set -e
+
+
+#------------------------------------------------------------------------------#
+echo_header "check that --android-home overrides ANDROID_HOME"
 
 REPOROOT=`create_test_dir`
 FAKE_ANDROID_HOME=`create_test_dir`
@@ -94,7 +232,12 @@ set -e
 
 
 #------------------------------------------------------------------------------#
-echo "setup a new repo from scratch with keystore and android-home set on cmd line"
+# In this case, ANDROID_HOME is set to a fake, non-working version that will
+# be detected by fdroid as an Android SDK install.  It should use the path set
+# by --android-home over the one in ANDROID_HOME, therefore if it uses the one
+# in ANDROID_HOME, it won't work because it is a fake one.  Only
+# --android-home provides a working one.
+echo_header "setup a new repo from scratch with keystore and android-home set on cmd line"
 
 REPOROOT=`create_test_dir`
 KEYSTORE=$REPOROOT/keystore.jks
@@ -104,30 +247,30 @@ STORED_ANDROID_HOME=$ANDROID_HOME
 unset ANDROID_HOME
 echo "ANDROID_HOME: $ANDROID_HOME"
 cd $REPOROOT
-$fdroid init --keystore $KEYSTORE --android-home $FAKE_ANDROID_HOME --no-prompt
+$fdroid init --keystore $KEYSTORE --android-home $STORED_ANDROID_HOME --no-prompt
 test -e $KEYSTORE
 copy_apks_into_repo $REPOROOT
-$fdroid update -c
-$fdroid update
+$fdroid update --create-metadata
+grep -F '<application id=' repo/index.xml
 test -e repo/index.xml
 test -e repo/index.jar
 export ANDROID_HOME=$STORED_ANDROID_HOME
 
 
 #------------------------------------------------------------------------------#
-echo "setup new repo from scratch using ANDROID_HOME, putting APKs in repo first"
+echo_header "setup new repo from scratch using ANDROID_HOME, putting APKs in repo first"
 
 REPOROOT=`create_test_dir`
 cd $REPOROOT
 mkdir repo
 copy_apks_into_repo $REPOROOT
 $fdroid init
-$fdroid update -c
-$fdroid update
+$fdroid update --create-metadata
+grep -F '<application id=' repo/index.xml
 
 
 #------------------------------------------------------------------------------#
-echo "setup a new repo from scratch and generate a keystore"
+echo_header "setup a new repo from scratch and generate a keystore"
 
 REPOROOT=`create_test_dir`
 KEYSTORE=$REPOROOT/keystore.jks
@@ -135,14 +278,34 @@ cd $REPOROOT
 $fdroid init --keystore $KEYSTORE
 test -e $KEYSTORE
 copy_apks_into_repo $REPOROOT
-$fdroid update -c
-$fdroid update
+$fdroid update --create-metadata
 test -e repo/index.xml
 test -e repo/index.jar
+grep -F '<application id=' repo/index.xml
 
 
 #------------------------------------------------------------------------------#
-echo "setup a new repo from scratch with a HSM/smartcard"
+echo_header "setup a new repo from scratch, generate a keystore, then add APK and update"
+
+REPOROOT=`create_test_dir`
+KEYSTORE=$REPOROOT/keystore.jks
+cd $REPOROOT
+$fdroid init --keystore $KEYSTORE
+test -e $KEYSTORE
+copy_apks_into_repo $REPOROOT
+$fdroid update --create-metadata
+test -e repo/index.xml
+test -e repo/index.jar
+grep -F '<application id=' repo/index.xml
+cp $WORKSPACE/tests/urzip.apk $REPOROOT/
+$fdroid update --create-metadata
+test -e repo/index.xml
+test -e repo/index.jar
+grep -F '<application id=' repo/index.xml
+
+
+#------------------------------------------------------------------------------#
+echo_header "setup a new repo from scratch with a HSM/smartcard"
 
 REPOROOT=`create_test_dir`
 cd $REPOROOT

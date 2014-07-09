@@ -7,6 +7,7 @@ import time
 import hashlib
 from optparse import OptionParser
 
+
 def vagrant(params, cwd=None, printout=False):
     """Run vagrant.
 
@@ -18,7 +19,7 @@ def vagrant(params, cwd=None, printout=False):
                is the stdout (and stderr) from vagrant
     """
     p = subprocess.Popen(['vagrant'] + params, cwd=cwd,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out = ''
     if printout:
         while True:
@@ -37,9 +38,9 @@ serverdir = 'buildserver'
 
 parser = OptionParser()
 parser.add_option("-v", "--verbose", action="store_true", default=False,
-                      help="Spew out even more information than normal")
+                  help="Spew out even more information than normal")
 parser.add_option("-c", "--clean", action="store_true", default=False,
-                      help="Build from scratch, rather than attempting to update the existing server")
+                  help="Build from scratch, rather than attempting to update the existing server")
 options, args = parser.parse_args()
 
 config = {}
@@ -59,52 +60,58 @@ if options.clean:
 cachedir = os.path.join('buildserver', 'cache')
 if not os.path.exists(cachedir):
     os.mkdir(cachedir)
+
 cachefiles = [
-    ('android-sdk_r22.6-linux.tgz',
-     'https://dl.google.com/android/android-sdk_r22.6-linux.tgz',
-     'da4c25536ba7f85cdd37be8636fcc563480410788df30c3fc5b5c876e6220e5f'),
+    ('android-sdk_r23.0.2-linux.tgz',
+     'https://dl.google.com/android/android-sdk_r23.0.2-linux.tgz',
+     'a86741fee9140c340b60fe545566db7c0a43a0963f3c7e64d07b4d05ebbe89f4'),
     ('gradle-1.4-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.4-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.4-bin.zip',
      'cd99e85fbcd0ae8b99e81c9992a2f10cceb7b5f009c3720ef3a0078f4f92e94e'),
     ('gradle-1.6-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.6-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.6-bin.zip',
      'de3e89d2113923dcc2e0def62d69be0947ceac910abd38b75ec333230183fac4'),
     ('gradle-1.7-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.7-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.7-bin.zip',
      '360c97d51621b5a1ecf66748c718594e5f790ae4fbc1499543e0c006033c9d30'),
     ('gradle-1.8-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.8-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.8-bin.zip',
      'a342bbfa15fd18e2482287da4959588f45a41b60910970a16e6d97959aea5703'),
     ('gradle-1.9-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.9-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.9-bin.zip',
      '097ddc2bcbc9da2bb08cbf6bf8079585e35ad088bafd42e8716bc96405db98e9'),
     ('gradle-1.10-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.10-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.10-bin.zip',
      '6e6db4fc595f27ceda059d23693b6f6848583950606112b37dfd0e97a0a0a4fe'),
     ('gradle-1.11-bin.zip',
-     'http://services.gradle.org/distributions/gradle-1.11-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.11-bin.zip',
      '07e235df824964f0e19e73ea2327ce345c44bcd06d44a0123d29ab287fc34091'),
+    ('gradle-1.12-bin.zip',
+     'https://services.gradle.org/distributions/gradle-1.12-bin.zip',
+     '8734b13a401f4311ee418173ed6ca8662d2b0a535be8ff2a43ecb1c13cd406ea'),
     ('Kivy-1.7.2.tar.gz',
      'https://pypi.python.org/packages/source/K/Kivy/Kivy-1.7.2.tar.gz',
      '0485e2ef97b5086df886eb01f8303cb542183d2d71a159466f99ad6c8a1d03f1')
     ]
+
 if config['arch64']:
     cachefiles.extend([
-    ('android-ndk-r9b-linux-x86_64.tar.bz2',
-     'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86_64.tar.bz2',
-     '8956e9efeea95f49425ded8bb697013b66e162b064b0f66b5c75628f76e0f532'),
-    ('android-ndk-r9b-linux-x86_64-legacy-toolchains.tar.bz2',
-     'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86_64-legacy-toolchains.tar.bz2',
-     'de93a394f7c8f3436db44568648f87738a8d09801a52f459dcad3fc047e045a1')])
+        ('android-ndk-r9b-linux-x86_64.tar.bz2',
+         'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86_64.tar.bz2',
+         '8956e9efeea95f49425ded8bb697013b66e162b064b0f66b5c75628f76e0f532'),
+        ('android-ndk-r9b-linux-x86_64-legacy-toolchains.tar.bz2',
+         'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86_64-legacy-toolchains.tar.bz2',
+         'de93a394f7c8f3436db44568648f87738a8d09801a52f459dcad3fc047e045a1')])
 else:
     cachefiles.extend([
-    ('android-ndk-r9b-linux-x86.tar.bz2',
-     'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86.tar.bz2',
-     '748104b829dd12afb2fdb3044634963abb24cdb0aad3b26030abe2e9e65bfc81'),
-    ('android-ndk-r9b-linux-x86-legacy-toolchains.tar.bz2',
-     'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86-legacy-toolchains.tar.bz2',
-     '606aadf815ae28cc7b0154996247c70d609f111b14e44bcbcd6cad4c87fefb6f')])
+        ('android-ndk-r9b-linux-x86.tar.bz2',
+         'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86.tar.bz2',
+         '748104b829dd12afb2fdb3044634963abb24cdb0aad3b26030abe2e9e65bfc81'),
+        ('android-ndk-r9b-linux-x86-legacy-toolchains.tar.bz2',
+         'https://dl.google.com/android/ndk/android-ndk-r9b-linux-x86-legacy-toolchains.tar.bz2',
+         '606aadf815ae28cc7b0154996247c70d609f111b14e44bcbcd6cad4c87fefb6f')])
 wanted = []
+
 
 def sha256_for_file(path):
     with open(path, 'r') as f:
@@ -205,7 +212,7 @@ buildserverid = p.communicate()[0].strip()
 print "...ID is " + buildserverid
 subprocess.call(
     ['vagrant', 'ssh', '-c', 'sh -c "echo {0} >/home/vagrant/buildserverid"'
-    .format(buildserverid)],
+        .format(buildserverid)],
     cwd=serverdir)
 
 print "Stopping build server VM"
@@ -234,4 +241,3 @@ vagrant(['box', 'add', 'buildserver', boxfile, '-f'],
         printout=options.verbose)
 
 os.remove(boxfile)
-

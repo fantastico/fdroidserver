@@ -17,60 +17,91 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, re, glob
+import os
+import re
+import glob
 import cgi
 import logging
+
+from collections import OrderedDict
+
+srclibs = None
+
 
 class MetaDataException(Exception):
     def __init__(self, value):
         self.value = value
 
     def __str__(self):
-        return repr(self.value)
+        return self.value
 
-app_defaults = {
-    'Name': None,
-    'Provides': None,
-    'Auto Name': '',
-    'Categories': ['None'],
-    'Description': [],
-    'Summary': '',
-    'License': 'Unknown',
-    'Web Site': '',
-    'Source Code': '',
-    'Issue Tracker': '',
-    'Donate': None,
-    'FlattrID': None,
-    'Bitcoin': None,
-    'Litecoin': None,
-    'Dogecoin': None,
-    'Disabled': None,
-    'AntiFeatures': None,
-    'Archive Policy': None,
-    'Update Check Mode': 'None',
-    'Update Check Name': None,
-    'Update Check Data': None,
-    'Vercode Operation': None,
-    'Auto Update Mode': 'None',
-    'Current Version': '',
-    'Current Version Code': '0',
-    'Repo Type': '',
-    'Repo': '',
-    'Requires Root': False,
-    'No Source Since': ''
-}
+# In the order in which they are laid out on files
+app_defaults = OrderedDict([
+    ('Disabled', None),
+    ('AntiFeatures', None),
+    ('Provides', None),
+    ('Categories', ['None']),
+    ('License', 'Unknown'),
+    ('Web Site', ''),
+    ('Source Code', ''),
+    ('Issue Tracker', ''),
+    ('Donate', None),
+    ('FlattrID', None),
+    ('Bitcoin', None),
+    ('Litecoin', None),
+    ('Dogecoin', None),
+    ('Name', None),
+    ('Auto Name', ''),
+    ('Summary', ''),
+    ('Description', []),
+    ('Requires Root', False),
+    ('Repo Type', ''),
+    ('Repo', ''),
+    ('Maintainer Notes', []),
+    ('Archive Policy', None),
+    ('Auto Update Mode', 'None'),
+    ('Update Check Mode', 'None'),
+    ('Update Check Ignore', None),
+    ('Vercode Operation', None),
+    ('Update Check Name', None),
+    ('Update Check Data', None),
+    ('Current Version', ''),
+    ('Current Version Code', '0'),
+    ('No Source Since', ''),
+    ])
 
 
-# This defines the preferred order for the build items - as in the
-# manual, they're roughly in order of application.
-ordered_flags = [
-    'disable', 'commit', 'subdir', 'submodules', 'init',
-    'gradle', 'maven', 'kivy', 'output', 'oldsdkloc', 'target',
-    'update', 'encoding', 'forceversion', 'forcevercode', 'rm',
-    'extlibs', 'srclibs', 'patch', 'prebuild', 'scanignore',
-    'scandelete', 'build', 'buildjni', 'preassemble', 'bindir',
-    'antcommand', 'novcheck'
-]
+# In the order in which they are laid out on files
+# Sorted by their action and their place in the build timeline
+flag_defaults = OrderedDict([
+    ('disable', False),
+    ('commit', None),
+    ('subdir', None),
+    ('submodules', False),
+    ('init', ''),
+    ('patch', []),
+    ('gradle', False),
+    ('maven', False),
+    ('kivy', False),
+    ('output', None),
+    ('srclibs', []),
+    ('oldsdkloc', False),
+    ('encoding', None),
+    ('forceversion', False),
+    ('forcevercode', False),
+    ('rm', []),
+    ('extlibs', []),
+    ('prebuild', ''),
+    ('update', ['auto']),
+    ('target', None),
+    ('scanignore', []),
+    ('scandelete', []),
+    ('build', ''),
+    ('buildjni', []),
+    ('preassemble', []),
+    ('antcommand', None),
+    ('novcheck', False),
+    ])
 
 
 # Designates a metadata field type and checks that it matches
@@ -81,7 +112,8 @@ ordered_flags = [
 # 'fields'   - Metadata fields (Field:Value) of this type
 # 'attrs'    - Build attributes (attr=value) of this type
 #
-class FieldType():
+class FieldValidator():
+
     def __init__(self, name, matching, sep, fields, attrs):
         self.name = name
         self.matching = matching
@@ -95,15 +127,15 @@ class FieldType():
         for v in values:
             if not self.compiled.match(v):
                 raise MetaDataException("'%s' is not a valid %s in %s. "
-                        % (v, self.name, appid) +
-                        "Regex pattern: %s" % (self.matching))
+                                        % (v, self.name, appid) +
+                                        "Regex pattern: %s" % (self.matching))
 
     def _assert_list(self, values, appid):
         for v in values:
             if v not in self.matching:
                 raise MetaDataException("'%s' is not a valid %s in %s. "
-                        % (v, self.name, appid) +
-                        "Possible values: %s" % (", ".join(self.matching)))
+                                        % (v, self.name, appid) +
+                                        "Possible values: %s" % (", ".join(self.matching)))
 
     def check(self, value, appid):
         if type(value) is not str or not value:
@@ -120,83 +152,77 @@ class FieldType():
 
 # Generic value types
 valuetypes = {
-    'int' : FieldType("Integer",
-        r'^[1-9][0-9]*$', None,
-        [ 'FlattrID' ],
-        [ 'vercode' ]),
+    FieldValidator("Integer",
+                   r'^[1-9][0-9]*$', None,
+                   ['FlattrID'],
+                   ['vercode']),
 
-    'http' : FieldType("HTTP link",
-        r'^http[s]?://', None,
-        [ "Web Site", "Source Code", "Issue Tracker", "Donate" ], []),
+    FieldValidator("HTTP link",
+                   r'^http[s]?://', None,
+                   ["Web Site", "Source Code", "Issue Tracker", "Donate"], []),
 
-    'bitcoin' : FieldType("Bitcoin address",
-        r'^[a-zA-Z0-9]{27,34}$', None,
-        [ "Bitcoin" ],
-        [ ]),
+    FieldValidator("Bitcoin address",
+                   r'^[a-zA-Z0-9]{27,34}$', None,
+                   ["Bitcoin"],
+                   []),
 
-    'litecoin' : FieldType("Litecoin address",
-        r'^L[a-zA-Z0-9]{33}$', None,
-        [ "Litecoin" ],
-        [ ]),
+    FieldValidator("Litecoin address",
+                   r'^L[a-zA-Z0-9]{33}$', None,
+                   ["Litecoin"],
+                   []),
 
-    'dogecoin' : FieldType("Dogecoin address",
-        r'^D[a-zA-Z0-9]{33}$', None,
-        [ "Dogecoin" ],
-        [ ]),
+    FieldValidator("Dogecoin address",
+                   r'^D[a-zA-Z0-9]{33}$', None,
+                   ["Dogecoin"],
+                   []),
 
-    'Bool' : FieldType("Boolean",
-        ['Yes', 'No'], None,
-        [ "Requires Root" ],
-        [ ]),
+    FieldValidator("Boolean",
+                   ['Yes', 'No'], None,
+                   ["Requires Root"],
+                   []),
 
-    'bool' : FieldType("Boolean",
-        ['yes', 'no'], None,
-        [ ],
-        [ 'submodules', 'oldsdkloc', 'forceversion', 'forcevercode',
-            'novcheck' ]),
+    FieldValidator("bool",
+                   ['yes', 'no'], None,
+                   [],
+                   ['submodules', 'oldsdkloc', 'forceversion', 'forcevercode',
+                    'novcheck']),
 
-    'Repo Type' : FieldType("Repo Type",
-        [ 'git', 'git-svn', 'svn', 'hg', 'bzr', 'srclib' ], None,
-        [ "Repo Type" ],
-        [ ]),
+    FieldValidator("Repo Type",
+                   ['git', 'git-svn', 'svn', 'hg', 'bzr', 'srclib'], None,
+                   ["Repo Type"],
+                   []),
 
-    'archive' : FieldType("Archive Policy",
-        r'^[0-9]+ versions$', None,
-        [ "Archive Policy" ],
-        [ ]),
+    FieldValidator("Archive Policy",
+                   r'^[0-9]+ versions$', None,
+                   ["Archive Policy"],
+                   []),
 
-    'antifeatures' : FieldType("Anti-Feature",
-        [ "Ads", "Tracking", "NonFreeNet", "NonFreeDep", "NonFreeAdd", "UpstreamNonFree" ], ',',
-        [ "AntiFeatures" ],
-        [ ]),
+    FieldValidator("Anti-Feature",
+                   ["Ads", "Tracking", "NonFreeNet", "NonFreeDep", "NonFreeAdd", "UpstreamNonFree"], ',',
+                   ["AntiFeatures"],
+                   []),
 
-    'autoupdatemodes' : FieldType("Auto Update Mode",
-        r"^(Version .+|None)$", None,
-        [ "Auto Update Mode" ],
-        [ ]),
+    FieldValidator("Auto Update Mode",
+                   r"^(Version .+|None)$", None,
+                   ["Auto Update Mode"],
+                   []),
 
-    'updatecheckmodes' : FieldType("Update Check Mode",
-        r"^(Tags|Tags .+|RepoManifest|RepoManifest/.+|RepoTrunk|HTTP|Static|None)$", None,
-        [ "Update Check Mode" ],
-        [ ])
-}
+    FieldValidator("Update Check Mode",
+                   r"^(Tags|Tags .+|RepoManifest|RepoManifest/.+|RepoTrunk|HTTP|Static|None)$", None,
+                   ["Update Check Mode"],
+                   [])
+    }
+
 
 # Check an app's metadata information for integrity errors
 def check_metadata(info):
-    for k, t in valuetypes.iteritems():
-        for field in t.fields:
-            if field in info:
-                t.check(info[field], info['id'])
-                if k == 'Bool':
-                    info[field] = info[field] == "Yes"
+    for v in valuetypes:
+        for field in v.fields:
+            v.check(info[field], info['id'])
         for build in info['builds']:
-            for attr in t.attrs:
-                if attr in build:
-                    t.check(build[attr], info['id'])
-                    if k == 'bool':
-                        build[attr] = build[attr] == "yes"
-                elif k == 'bool':
-                    build[attr] = False
+            for attr in v.attrs:
+                v.check(build[attr], info['id'])
+
 
 # Formatter for descriptions. Create an instance, and call parseline() with
 # each line of the description source from the metadata. At the end, call
@@ -213,8 +239,10 @@ class DescriptionFormatter:
     text_wiki = ''
     text_html = ''
     linkResolver = None
+
     def __init__(self, linkres):
         self.linkResolver = linkres
+
     def endcur(self, notstates=None):
         if notstates and self.state in notstates:
             return
@@ -224,13 +252,16 @@ class DescriptionFormatter:
             self.endul()
         elif self.state == self.stOL:
             self.endol()
+
     def endpara(self):
         self.text_plain += '\n'
         self.text_html += '</p>'
         self.state = self.stNONE
+
     def endul(self):
         self.text_html += '</ul>'
         self.state = self.stNONE
+
     def endol(self):
         self.text_html += '</ol>'
         self.state = self.stNONE
@@ -262,7 +293,6 @@ class DescriptionFormatter:
                 self.ital = not self.ital
                 txt = txt[2:]
 
-
     def linkify(self, txt):
         linkified_plain = ''
         linkified_html = ''
@@ -284,7 +314,7 @@ class DescriptionFormatter:
                     urltext = url
                 linkified_html += '<a href="' + url + '">' + cgi.escape(urltext) + '</a>'
                 linkified_plain += urltext
-                txt = txt[index+2:]
+                txt = txt[index + 2:]
             else:
                 index = txt.find("]")
                 if index == -1:
@@ -300,7 +330,7 @@ class DescriptionFormatter:
                 linkified_plain += urltxt
                 if urltxt != url:
                     linkified_plain += ' (' + url + ')'
-                txt = txt[index+1:]
+                txt = txt[index + 1:]
 
     def addtext(self, txt):
         p, h = self.linkify(txt)
@@ -326,7 +356,7 @@ class DescriptionFormatter:
                 self.text_html += '<ol>'
                 self.state = self.stOL
             self.text_html += '<li>'
-            self.text_plain += '* ' #TODO: lazy - put the numbers in!
+            self.text_plain += '* '  # TODO: lazy - put the numbers in!
             self.addtext(line[1:])
             self.text_html += '</li>'
         else:
@@ -342,6 +372,7 @@ class DescriptionFormatter:
     def end(self):
         self.endcur()
 
+
 # Parse multiple lines of description as written in a metadata file, returning
 # a single string in plain text format.
 def description_plain(lines, linkres):
@@ -350,6 +381,7 @@ def description_plain(lines, linkres):
         ps.parseline(line)
     ps.end()
     return ps.text_plain
+
 
 # Parse multiple lines of description as written in a metadata file, returning
 # a single string in wiki format. Used for the Maintainer Notes field as well,
@@ -361,16 +393,18 @@ def description_wiki(lines):
     ps.end()
     return ps.text_wiki
 
+
 # Parse multiple lines of description as written in a metadata file, returning
 # a single string in HTML format.
-def description_html(lines,linkres):
+def description_html(lines, linkres):
     ps = DescriptionFormatter(linkres)
     for line in lines:
         ps.parseline(line)
     ps.end()
     return ps.text_html
 
-def parse_srclib(metafile, **kw):
+
+def parse_srclib(metafile):
 
     thisinfo = {}
     if metafile and not isinstance(metafile, file):
@@ -394,7 +428,7 @@ def parse_srclib(metafile, **kw):
             continue
 
         try:
-            field, value = line.split(':',1)
+            field, value = line.split(':', 1)
         except ValueError:
             raise MetaDataException("Invalid metadata in %s:%d" % (line, n))
 
@@ -405,9 +439,42 @@ def parse_srclib(metafile, **kw):
 
     return thisinfo
 
+
+def read_srclibs():
+    """Read all srclib metadata.
+
+    The information read will be accessible as metadata.srclibs, which is a
+    dictionary, keyed on srclib name, with the values each being a dictionary
+    in the same format as that returned by the parse_srclib function.
+
+    A MetaDataException is raised if there are any problems with the srclib
+    metadata.
+    """
+    global srclibs
+
+    # They were already loaded
+    if srclibs is not None:
+        return
+
+    srclibs = {}
+
+    srcdir = 'srclibs'
+    if not os.path.exists(srcdir):
+        os.makedirs(srcdir)
+
+    for metafile in sorted(glob.glob(os.path.join(srcdir, '*.txt'))):
+        srclibname = os.path.basename(metafile[:-4])
+        srclibs[srclibname] = parse_srclib(metafile)
+
+
 # Read all metadata. Returns a list of 'app' objects (which are dictionaries as
 # returned by the parse_metadata function.
-def read_metadata(xref=True, package=None, store=True):
+def read_metadata(xref=True):
+
+    # Always read the srclibs before the apps, since they can use a srlib as
+    # their source repository.
+    read_srclibs()
+
     apps = []
 
     for basedir in ('metadata', 'tmp'):
@@ -415,10 +482,9 @@ def read_metadata(xref=True, package=None, store=True):
             os.makedirs(basedir)
 
     for metafile in sorted(glob.glob(os.path.join('metadata', '*.txt'))):
-        if package is None or metafile == os.path.join('metadata', package + '.txt'):
-            appinfo = parse_metadata(metafile)
-            check_metadata(appinfo)
-            apps.append(appinfo)
+        appinfo = parse_metadata(metafile)
+        check_metadata(appinfo)
+        apps.append(appinfo)
 
     if xref:
         # Parse all descriptions at load time, just to ensure cross-referencing
@@ -433,9 +499,10 @@ def read_metadata(xref=True, package=None, store=True):
                 description_html(app['Description'], linkres)
             except Exception, e:
                 raise MetaDataException("Problem with description of " + app['id'] +
-                        " - " + str(e))
+                                        " - " + str(e))
 
     return apps
+
 
 # Get the type expected for a given metadata field.
 def metafieldtype(name):
@@ -453,13 +520,35 @@ def metafieldtype(name):
         return 'unknown'
     return 'string'
 
+
 def flagtype(name):
     if name in ['extlibs', 'srclibs', 'patch', 'rm', 'buildjni',
-            'update', 'scanignore', 'scandelete']:
+                'update', 'scanignore', 'scandelete']:
         return 'list'
     if name in ['init', 'prebuild', 'build']:
         return 'script'
+    if name in ['submodules', 'oldsdkloc', 'forceversion', 'forcevercode',
+                'novcheck']:
+        return 'bool'
     return 'string'
+
+
+def fill_build_defaults(build):
+
+    def get_build_type():
+        for t in ['maven', 'gradle', 'kivy']:
+            if build[t]:
+                return t
+        if build['output']:
+            return 'raw'
+        return 'ant'
+
+    for flag, value in flag_defaults.iteritems():
+        if flag in build:
+            continue
+        build[flag] = value
+    build['type'] = get_build_type()
+
 
 # Parse metadata for a single application.
 #
@@ -493,28 +582,33 @@ def parse_metadata(metafile):
     def add_buildflag(p, thisbuild):
         bv = p.split('=', 1)
         if len(bv) != 2:
-            raise MetaDataException("Invalid build flag at {0} in {1}".
-                    format(buildlines[0], linedesc))
+            raise MetaDataException("Invalid build flag at {0} in {1}"
+                                    .format(buildlines[0], linedesc))
         pk, pv = bv
         if pk in thisbuild:
-            raise MetaDataException("Duplicate definition on {0} in version {1} of {2}".
-                    format(pk, thisbuild['version'], linedesc))
+            raise MetaDataException("Duplicate definition on {0} in version {1} of {2}"
+                                    .format(pk, thisbuild['version'], linedesc))
 
         pk = pk.lstrip()
-        if pk not in ordered_flags:
-            raise MetaDataException("Unrecognised build flag at {0} in {1}".
-                    format(p, linedesc))
+        if pk not in flag_defaults:
+            raise MetaDataException("Unrecognised build flag at {0} in {1}"
+                                    .format(p, linedesc))
         t = flagtype(pk)
         if t == 'list':
             # Port legacy ';' separators
-            thisbuild[pk] = [v.strip() for v in pv.replace(';',',').split(',')]
-        elif t == 'string':
+            thisbuild[pk] = [v.strip() for v in pv.replace(';', ',').split(',')]
+        elif t == 'string' or t == 'script':
             thisbuild[pk] = pv
-        elif t == 'script':
-            thisbuild[pk] = pv
+        elif t == 'bool':
+            value = pv == 'yes'
+            if value:
+                thisbuild[pk] = True
+            else:
+                logging.debug("...ignoring bool flag %s" % p)
+
         else:
-            raise MetaDataException("Unrecognised build flag type '%s' at %s in %s" % (
-                    t, p, linedesc))
+            raise MetaDataException("Unrecognised build flag type '%s' at %s in %s"
+                                    % (t, p, linedesc))
 
     def parse_buildline(lines):
         value = "".join(lines)
@@ -533,7 +627,7 @@ def parse_metadata(metafile):
             commit = 'unknown - see disabled'
             index = parts[2].rfind('at ')
             if index != -1:
-                commit = parts[2][index+3:]
+                commit = parts[2][index + 3:]
                 if commit.endswith(')'):
                     commit = commit[:-1]
             thisbuild['commit'] = commit
@@ -550,14 +644,6 @@ def parse_metadata(metafile):
         for comment in curcomments:
             thisinfo['comments'].append((key, comment))
         del curcomments[:]
-
-    def get_build_type(build):
-        for t in ['maven', 'gradle', 'kivy']:
-            if build.get(t, 'no') != 'no':
-                return t
-        if 'output' in build:
-            return 'raw'
-        return 'ant'
 
     thisinfo = {}
     if metafile:
@@ -580,6 +666,7 @@ def parse_metadata(metafile):
     buildlines = []
     curcomments = []
     curbuild = None
+    vc_seen = {}
 
     c = 0
     for line in metafile:
@@ -589,10 +676,11 @@ def parse_metadata(metafile):
         if mode == 3:
             if not any(line.startswith(s) for s in (' ', '\t')):
                 if 'commit' not in curbuild and 'disable' not in curbuild:
-                    raise MetaDataException("No commit specified for {0} in {1}".format(
-                        curbuild['version'], linedesc))
+                    raise MetaDataException("No commit specified for {0} in {1}"
+                                            .format(curbuild['version'], linedesc))
+
                 thisinfo['builds'].append(curbuild)
-                add_comments('build:' + curbuild['version'])
+                add_comments('build:' + curbuild['vercode'])
                 mode = 0
             else:
                 if line.endswith('\\'):
@@ -610,11 +698,11 @@ def parse_metadata(metafile):
                 curcomments.append(line)
                 continue
             try:
-                field, value = line.split(':',1)
+                field, value = line.split(':', 1)
             except ValueError:
-                raise MetaDataException("Invalid metadata in "+linedesc)
+                raise MetaDataException("Invalid metadata in " + linedesc)
             if field != field.strip() or value != value.strip():
-                raise MetaDataException("Extra spacing found in "+linedesc)
+                raise MetaDataException("Extra spacing found in " + linedesc)
 
             # Translate obsolete fields...
             if field == 'Market Version':
@@ -633,22 +721,27 @@ def parse_metadata(metafile):
             elif fieldtype == 'string':
                 thisinfo[field] = value
             elif fieldtype == 'list':
-                thisinfo[field] = [v.strip() for v in value.replace(';',',').split(',')]
+                thisinfo[field] = [v.strip() for v in value.replace(';', ',').split(',')]
             elif fieldtype == 'build':
                 if value.endswith("\\"):
                     mode = 2
                     buildlines = [value[:-1]]
                 else:
-                    thisinfo['builds'].append(parse_buildline([value]))
-                    add_comments('build:' + thisinfo['builds'][-1]['version'])
+                    curbuild = parse_buildline([value])
+                    thisinfo['builds'].append(curbuild)
+                    add_comments('build:' + thisinfo['builds'][-1]['vercode'])
             elif fieldtype == 'buildv2':
                 curbuild = {}
                 vv = value.split(',')
                 if len(vv) != 2:
-                    raise MetaDataException('Build should have comma-separated version and vercode, not "{0}", in {1}'.
-                        format(value, linedesc))
+                    raise MetaDataException('Build should have comma-separated version and vercode, not "{0}", in {1}'
+                                            .format(value, linedesc))
                 curbuild['version'] = vv[0]
                 curbuild['vercode'] = vv[1]
+                if curbuild['vercode'] in vc_seen:
+                    raise MetaDataException('Duplicate build recipe found for vercode %s in %s' % (
+                                            curbuild['vercode'], linedesc))
+                vc_seen[curbuild['vercode']] = True
                 buildlines = []
                 mode = 3
             elif fieldtype == 'obsolete':
@@ -665,9 +758,9 @@ def parse_metadata(metafile):
                 buildlines.append(line[:-1])
             else:
                 buildlines.append(line)
-                thisinfo['builds'].append(
-                    parse_buildline(buildlines))
-                add_comments('build:' + thisinfo['builds'][-1]['version'])
+                curbuild = parse_buildline(buildlines)
+                thisinfo['builds'].append(curbuild)
+                add_comments('build:' + thisinfo['builds'][-1]['vercode'])
                 mode = 0
     add_comments(None)
 
@@ -683,9 +776,10 @@ def parse_metadata(metafile):
         thisinfo['Description'].append('No description available')
 
     for build in thisinfo['builds']:
-        build['type'] = get_build_type(build)
+        fill_build_defaults(build)
 
     return thisinfo
+
 
 # Write a metadata file.
 #
@@ -700,7 +794,7 @@ def write_metadata(dest, app):
                 mf.write("%s\n" % comment)
                 written += 1
         if written > 0:
-            logging.debug("...writing comments for " + (key if key else 'EOF'))
+            logging.debug("...writing comments for " + (key or 'EOF'))
 
     def writefield(field, value=None):
         writecomments(field)
@@ -752,47 +846,61 @@ def write_metadata(dest, app):
         writefield('Repo')
         mf.write('\n')
     for build in app['builds']:
-        writecomments('build:' + build['version'])
-        mf.write("Build:%s,%s\n" % ( build['version'], build['vercode']))
+
+        if build['version'] == "Ignore":
+            continue
+
+        writecomments('build:' + build['vercode'])
+        mf.write("Build:%s,%s\n" % (build['version'], build['vercode']))
 
         def write_builditem(key, value):
-            if key in ['version', 'vercode', 'origlines', 'type']:
+
+            if key in ['version', 'vercode']:
                 return
-            if key in valuetypes['bool'].attrs:
-                if not value:
-                    return
-                value = 'yes'
+
+            if value == flag_defaults[key]:
+                return
+
             t = flagtype(key)
+
             logging.debug("...writing {0} : {1}".format(key, value))
             outline = '    %s=' % key
+
             if t == 'string':
                 outline += value
+            if t == 'bool':
+                outline += 'yes'
             elif t == 'script':
                 outline += '&& \\\n        '.join([s.lstrip() for s in value.split('&& ')])
             elif t == 'list':
                 outline += ','.join(value) if type(value) == list else value
+
             outline += '\n'
             mf.write(outline)
 
-        for key in ordered_flags:
-            if key in build:
-                write_builditem(key, build[key])
+        for flag in flag_defaults:
+            value = build[flag]
+            if value:
+                write_builditem(flag, value)
         mf.write('\n')
 
-    if 'Maintainer Notes' in app:
+    if app['Maintainer Notes']:
         writefield('Maintainer Notes', '')
         for line in app['Maintainer Notes']:
             mf.write("%s\n" % line)
         mf.write('.\n')
         mf.write('\n')
 
-
     if app['Archive Policy']:
         writefield('Archive Policy')
     writefield('Auto Update Mode')
     writefield('Update Check Mode')
+    if app['Update Check Ignore']:
+        writefield('Update Check Ignore')
     if app['Vercode Operation']:
         writefield('Vercode Operation')
+    if app['Update Check Name']:
+        writefield('Update Check Name')
     if app['Update Check Data']:
         writefield('Update Check Data')
     if app['Current Version']:
@@ -804,5 +912,3 @@ def write_metadata(dest, app):
         mf.write('\n')
     writecomments(None)
     mf.close()
-
-

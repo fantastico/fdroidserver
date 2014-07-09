@@ -54,15 +54,12 @@ class Sen5DB:
     def update(self):
         self.clear()
         apps = xml2json.getJson('application')
-        apps = self.format(apps)
-        self.save(apps)
-
-
-import pydevd
+        if len(apps) > 0:
+            apps = self.format(apps)
+            self.save(apps)
 
 
 def update_db():
-#    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
     db = Sen5DB(1)
     db.update()
 

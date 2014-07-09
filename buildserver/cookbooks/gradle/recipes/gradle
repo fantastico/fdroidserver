@@ -4,14 +4,9 @@ bindir="$(dirname $0)"
 basedir="$(dirname $bindir)"
 verdir="${basedir}/versions"
 args=("$@")
-pushd "${verdir}" &>/dev/null
 
-v_all=(*/)
-v_all=(${v_all[@]%/})
-
+v_all=($(cd ${verdir} && ls | sort -rV))
 echo "Available gradle versions: ${v_all[@]}"
-
-popd &>/dev/null
 
 run_gradle() {
 	${verdir}/${v_found}/bin/gradle "${args[@]}"
@@ -28,8 +23,8 @@ contains() {
 
 # key-value pairs of what gradle version each gradle plugin version
 # should accept
-d_plugin_k=( 0.9  0.8 0.7 0.6 0.5 0.4 0.3 0.2)
-d_plugin_v=(1.11 1.10 1.9 1.8 1.6 1.6 1.4 1.4)
+d_plugin_k=(0.12 0.11 0.10  0.9  0.8 0.7 0.6 0.5 0.4 0.3 0.2)
+d_plugin_v=(1.12 1.12 1.12 1.11 1.10 1.9 1.8 1.6 1.6 1.4 1.4)
 
 for v in ${d_plugin_v}; do
 	contains $v "${v_all[*]}" && v_def=$v && break
@@ -39,9 +34,9 @@ done
 for f in ../build.gradle build.gradle; do
 	[[ -f $f ]] || continue
 	while read l; do
-		if [[ $l == *'com.android.tools.build:gradle:'* ]]; then
+		if [[ -z "$plugin_pver" && $l == *'com.android.tools.build:gradle:'* ]]; then
 			plugin_pver=$(echo -n "$l" | sed "s/.*com.android.tools.build:gradle:\\([0-9\\.\\+]\\+\\).*/\\1/")
-		elif [[ $l == *'gradleVersion'* ]]; then
+		elif [[ -z "$wrapper_ver" && $l == *'gradleVersion'* ]]; then
 			wrapper_ver=$(echo -n "$l" | sed "s/.*gradleVersion[ ]*=[ ]*[\"']\\([0-9\\.]\\+\\)[\"'].*/\\1/")
 		fi
 	done < $f

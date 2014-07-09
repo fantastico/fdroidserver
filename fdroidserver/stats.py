@@ -71,7 +71,7 @@ def main():
         sys.exit(1)
 
     # Get all metadata-defined apps...
-    metaapps = metadata.read_metadata(options.verbose)
+    metaapps = metadata.read_metadata()
 
     statsdir = 'stats'
     logsdir = os.path.join(statsdir, 'logs')
@@ -127,8 +127,8 @@ def main():
         appscount = Counter()
         appsvercount = Counter()
         logexpr = '(?P<ip>[.:0-9a-fA-F]+) - - \[(?P<time>.*?)\] ' + \
-                  '"GET (?P<uri>.*?) HTTP/1.\d" (?P<statuscode>\d+) ' + \
-                  '\d+ "(?P<referral>.*?)" "(?P<useragent>.*?)"'
+            '"GET (?P<uri>.*?) HTTP/1.\d" (?P<statuscode>\d+) ' + \
+            '\d+ "(?P<referral>.*?)" "(?P<useragent>.*?)"'
         logsearch = re.compile(logexpr).search
         for logfile in glob.glob(os.path.join(logsdir, 'access-*.log.gz')):
             logging.debug('...' + logfile)

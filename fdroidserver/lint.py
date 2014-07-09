@@ -20,113 +20,129 @@
 from optparse import OptionParser
 import re
 import logging
-import common, metadata
+import common
+import metadata
+from collections import Counter
 
 config = None
 options = None
 
 regex_warnings = {
-        'Web Site': [
-            (re.compile(r'.*[^sS]://github\.com/.*'),
-                "github URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://code\.google\.com/.*'),
-                "code.google.com URLs should always use https:// not http://"),
+    'Web Site': [
+        (re.compile(r'.*[^sS]://github\.com/.*'),
+         "github URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://code\.google\.com/.*'),
+         "code.google.com URLs should always use https:// not http://"),
         ],
-        'Source Code': [
-            (re.compile(r'.*[^sS]://github\.com/.*'),
-                "github URLs should always use https:// (not http://, git://, or git@)"),
-            (re.compile(r'.*code\.google\.com/p/[^/]+[/]*$'),
-                "/source is missing"),
-            (re.compile(r'.*[^sS]://code\.google\.com/.*'),
-                "code.google.com URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://dl\.google\.com/.*'),
-                "dl.google.com URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://gitorious\.org/.*'),
-                "gitorious URLs should always use https:// (not http://, git://, or git@)"),
+    'Source Code': [
+        (re.compile(r'.*[^sS]://github\.com/.*'),
+         "github URLs should always use https:// (not http://, git://, or git@)"),
+        (re.compile(r'.*code\.google\.com/p/[^/]+[/]*$'),
+         "/source is missing"),
+        (re.compile(r'.*[^sS]://code\.google\.com/.*'),
+         "code.google.com URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://dl\.google\.com/.*'),
+         "dl.google.com URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://gitorious\.org/.*'),
+         "gitorious URLs should always use https:// (not http://, git://, or git@)"),
         ],
-        'Repo': [
-            (re.compile(r'.*[^sS]://code\.google\.com/.*'),
-                "code.google.com URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://dl\.google\.com/.*'),
-                "dl.google.com URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://github\.com/.*'),
-                "github URLs should always use https:// (not http://, git://, or git@)"),
-            (re.compile(r'.*[^sS]://gitorious\.org/.*'),
-                "gitorious URLs should always use https:// (not http://, git://, or git@)"),
-            (re.compile(r'.*[^sS]://[^.]*\.googlecode\.com/svn/?.*'),
-                "Google Code SVN URLs should always use https:// (not http:// or svn://)"),
-            (re.compile(r'.*[^sS]://svn\.apache\.org/repos/?.*'),
-                "Apache SVN URLs should always use https:// (not http:// or svn://)"),
-            (re.compile(r'.*[^sS]://svn\.code\.sf\.net/.*'),
-                "Sourceforge SVN URLs should always use https:// (not http:// or svn://)"),
+    'Repo': [
+        (re.compile(r'.*[^sS]://code\.google\.com/.*'),
+         "code.google.com URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://dl\.google\.com/.*'),
+         "dl.google.com URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://github\.com/.*'),
+         "github URLs should always use https:// (not http://, git://, or git@)"),
+        (re.compile(r'.*[^sS]://gitorious\.org/.*'),
+         "gitorious URLs should always use https:// (not http://, git://, or git@)"),
+        (re.compile(r'.*[^sS]://[^.]*\.googlecode\.com/svn/?.*'),
+         "Google Code SVN URLs should always use https:// (not http:// or svn://)"),
+        (re.compile(r'.*[^sS]://svn\.apache\.org/repos/?.*'),
+         "Apache SVN URLs should always use https:// (not http:// or svn://)"),
+        (re.compile(r'.*[^sS]://svn\.code\.sf\.net/.*'),
+         "Sourceforge SVN URLs should always use https:// (not http:// or svn://)"),
         ],
-        'Issue Tracker': [
-            (re.compile(r'.*code\.google\.com/p/[^/]+[/]*$'),
-                "/issues is missing"),
-            (re.compile(r'.*[^sS]://code\.google\.com/.*'),
-                "code.google.com URLs should always use https:// not http://"),
-            (re.compile(r'.*github\.com/[^/]+/[^/]+[/]*$'),
-                "/issues is missing"),
-            (re.compile(r'.*[^sS]://github\.com/.*'),
-                "github URLs should always use https:// not http://"),
-            (re.compile(r'.*[^sS]://gitorious\.org/.*'),
-                "gitorious URLs should always use https:// not http://"),
+    'Issue Tracker': [
+        (re.compile(r'.*code\.google\.com/p/[^/]+[/]*$'),
+         "/issues is missing"),
+        (re.compile(r'.*[^sS]://code\.google\.com/.*'),
+         "code.google.com URLs should always use https:// not http://"),
+        (re.compile(r'.*github\.com/[^/]+/[^/]+[/]*$'),
+         "/issues is missing"),
+        (re.compile(r'.*[^sS]://github\.com/.*'),
+         "github URLs should always use https:// not http://"),
+        (re.compile(r'.*[^sS]://gitorious\.org/.*'),
+         "gitorious URLs should always use https:// not http://"),
+        ],
+    'License': [
+        (re.compile(r'^(|None|Unknown)$'),
+         "No license specified"),
+        ],
+    'Description': [
+        (re.compile(r'^No description available$'),
+         "Description yet to be filled"),
+        (re.compile(r'[ ]*[*#][^ .]'),
+         "Invalid bulleted list"),
+        (re.compile(r'^ '),
+         "Unnecessary leading space"),
         ],
 }
 
 regex_pedantic = {
-        'Web Site': [
-            (re.compile(r'.*github\.com/[^/]+/[^/]+\.git'),
-                "Appending .git is not necessary"),
-            (re.compile(r'.*code\.google\.com/p/[^/]+/[^w]'),
-                "Possible incorrect path appended to google code project site"),
+    'Web Site': [
+        (re.compile(r'.*github\.com/[^/]+/[^/]+\.git'),
+         "Appending .git is not necessary"),
+        (re.compile(r'.*code\.google\.com/p/[^/]+/[^w]'),
+         "Possible incorrect path appended to google code project site"),
         ],
-        'Source Code': [
-            (re.compile(r'.*github\.com/[^/]+/[^/]+\.git'),
-                "Appending .git is not necessary"),
-            (re.compile(r'.*code\.google\.com/p/[^/]+/source/.*'),
-                "/source is often enough on its own"),
+    'Source Code': [
+        (re.compile(r'.*github\.com/[^/]+/[^/]+\.git'),
+         "Appending .git is not necessary"),
+        (re.compile(r'.*code\.google\.com/p/[^/]+/source/.*'),
+         "/source is often enough on its own"),
         ],
-        'Repo': [
-            (re.compile(r'^http://.*'),
-                "if https:// is available, use it instead of http://"),
-            (re.compile(r'^svn://.*'),
-                "if https:// is available, use it instead of svn://"),
+    'Repo': [
+        (re.compile(r'^http://.*'),
+         "use https:// if available"),
+        (re.compile(r'^svn://.*'),
+         "use https:// if available"),
         ],
-        'Issue Tracker': [
-            (re.compile(r'.*code\.google\.com/p/[^/]+/issues/.*'),
-                "/issues is often enough on its own"),
-            (re.compile(r'.*github\.com/[^/]+/[^/]+/issues/.*'),
-                "/issues is often enough on its own"),
+    'Issue Tracker': [
+        (re.compile(r'.*code\.google\.com/p/[^/]+/issues/.*'),
+         "/issues is often enough on its own"),
+        (re.compile(r'.*github\.com/[^/]+/[^/]+/issues/.*'),
+         "/issues is often enough on its own"),
         ],
-        'Summary': [
-            (re.compile(r'.*\bandroid\b.*', re.IGNORECASE),
-                "No need to specify that the app is for Android"),
-            (re.compile(r'.*\b(app|application)\b.*', re.IGNORECASE),
-                "No need to specify that the app is... an app"),
-            (re.compile(r'.*\b(free software|open source)\b.*', re.IGNORECASE),
-                "No need to specify that the app is Free Software"),
-            (re.compile(r'.*[a-z0-9][.,!?][ $]'),
-                "Punctuation should be avoided"),
+    'Summary': [
+        (re.compile(r'^[a-z]'),
+         "No capitalization was done"),
+        (re.compile(r'.*\bandroid\b.*', re.IGNORECASE),
+         "No need to specify that the app is for Android"),
+        (re.compile(r'.*\b(app|application)\b.*', re.IGNORECASE),
+         "No need to specify that the app is... an app"),
+        (re.compile(r'.*\b(free software|open source)\b.*', re.IGNORECASE),
+         "No need to specify that the app is Free Software"),
+        (re.compile(r'.*[a-z0-9][.,!?][ $]'),
+         "Punctuation should be avoided"),
         ],
-}
+    }
+
 
 def main():
 
-    global config, options, appid, app_count, warn_count
+    global config, options, appid, count
     appid = None
 
-    app_count = 0
-    warn_count = 0
+    count = Counter()
 
     def warn(message):
-        global appid, app_count, warn_count
+        global appid, count
         if appid:
             print "%s:" % appid
             appid = None
-            app_count += 1
+            count['app'] += 1
         print '    %s' % message
-        warn_count += 1
+        count['warn'] += 1
 
     def pwarn(message):
         if options.pedantic:
@@ -134,10 +150,12 @@ def main():
 
     # Parse command line...
     parser = OptionParser(usage="Usage: %prog [options] [APPID [APPID ...]]")
-    parser.add_option("-p", "--pedantic", action="store_true", default=False,
-                      help="Show pedantic warnings that might give false positives")
     parser.add_option("-v", "--verbose", action="store_true", default=False,
                       help="Spew out even more information than normal")
+    parser.add_option("-q", "--quiet", action="store_true", default=False,
+                      help="Restrict output to warnings and errors")
+    parser.add_option("-p", "--pedantic", action="store_true", default=False,
+                      help="Show pedantic warnings that might give false positives")
     (options, args) = parser.parse_args()
 
     config = common.read_config(options)
@@ -154,7 +172,7 @@ def main():
             continue
 
         for build in app['builds']:
-            if 'commit' in build and 'disable' not in build:
+            if build['commit'] and not build['disable']:
                 lastcommit = build['commit']
 
         # Potentially incorrect UCM
@@ -162,10 +180,6 @@ def main():
                 any(s in lastcommit for s in '.,_-/')):
             pwarn("Last used commit '%s' looks like a tag, but Update Check Mode is '%s'" % (
                 lastcommit, app['Update Check Mode']))
-
-        # No proper license
-        if app['License'] in ('Unknown','None',''):
-            warn("License was not set")
 
         # Summary size limit
         summ_chars = len(app['Summary'])
@@ -175,7 +189,7 @@ def main():
 
         # Redundant summaries
         summary = app['Summary']
-        name = str(app['Name'] if app['Name'] else app['Auto Name'])
+        name = app['Name'] or app['Auto Name']
         if summary and name:
             summary_l = summary.lower()
             name_l = name.lower()
@@ -185,14 +199,8 @@ def main():
                 pwarn("Summary '%s' probably contains redundant info already in app name '%s'" % (
                     summary, name))
 
-        # Invalid lists
-        desc_chars = 0
-        for line in app['Description']:
-            if re.match(r'[ ]*[*#][^ .]', line):
-                warn("Invalid bulleted list: '%s'" % line)
-            desc_chars += len(line)
-
         # Description size limit
+        desc_chars = sum(len(l) for l in app['Description'])
         if desc_chars > config['char_limits']['Description']:
             warn("Description of length %s is over the %i char limit" % (
                 desc_chars, config['char_limits']['Description']))
@@ -200,8 +208,14 @@ def main():
         # Regex checks in all kinds of fields
         for f in regex_warnings:
             for m, r in regex_warnings[f]:
-                if m.match(app[f]):
-                    warn("%s '%s': %s" % (f, app[f], r))
+                t = metadata.metafieldtype(f)
+                if t == 'string':
+                    if m.match(app[f]):
+                        warn("%s '%s': %s" % (f, app[f], r))
+                elif t == 'multiline':
+                    for l in app[f]:
+                        if m.match(l):
+                            warn("%s at line '%s': %s" % (f, l, r))
 
         # Regex pedantic checks in all kinds of fields
         if options.pedantic:
@@ -212,23 +226,27 @@ def main():
 
         # Build warnings
         for build in app['builds']:
-            for n in ['master', 'origin/', 'default', 'trunk']:
-                if 'commit' in build:
-                    if build['commit'].startswith(n):
-                        warn("Branch '%s' used as commit in build '%s'" % (
-                            n, build['version']))
-                if 'srclibs' in build:
-                    for srclib in build['srclibs']:
-                        ref = srclib.split('@')[1].split('/')[0]
-                        if ref.startswith(n):
-                            warn("Branch '%s' used as commit in srclib '%s'" % (
-                                n, srclib))
+            for s in ['master', 'origin/', 'default', 'trunk']:
+                if build['commit'] and build['commit'].startswith(s):
+                    warn("Branch '%s' used as commit in build '%s'" % (
+                        s, build['version']))
+                for srclib in build['srclibs']:
+                    ref = srclib.split('@')[1].split('/')[0]
+                    if ref.startswith(s):
+                        warn("Branch '%s' used as commit in srclib '%s'" % (
+                            s, srclib))
+            for s in ['git clone', 'svn checkout', 'svn co', 'hg clone']:
+                for flag in ['init', 'prebuild', 'build']:
+                    if not build[flag]:
+                        continue
+                    if s in build[flag]:
+                        # TODO: This should not be pedantic!
+                        pwarn("'%s' used in %s '%s'" % (s, flag, build[flag]))
 
         if not appid:
             print
 
-    logging.info("Found a total of %i warnings in %i apps." % (warn_count, app_count))
+    logging.info("Found a total of %i warnings in %i apps." % (count['warn'], count['app']))
 
 if __name__ == "__main__":
     main()
-
