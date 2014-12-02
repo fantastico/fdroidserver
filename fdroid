@@ -26,6 +26,7 @@ commands = {
     "init": "Quickly start a new repository",
     "publish": "Sign and place packages in the repo",
     "update": "Update repo information for new packages",
+    "sen5_update": "Update repo information for new packages",
     "verify": "Verify the integrity of downloaded packages",
     "checkupdates": "Check for updates to applications",
     "import": "Add a new application from its source code",
@@ -49,7 +50,8 @@ def print_help():
 
 
 import pydevd
-# pydevd.settrace('192.168.2.192', port=51234, stdoutToServer=True, stderrToServer=True)
+pydevd.settrace('192.168.0.123', port=51234, stdoutToServer=True, stderrToServer=True)
+
 def main():
     if len(sys.argv) <= 1:
         print_help()

@@ -318,7 +318,7 @@ def resize_all_icons(repodirs):
                 resize_icon(iconpath, density)
 
 
-def scan_apks(apps, apkcache, repodir, knownapks):
+def scan_apks(apps, apkcache, repodir, knownapks, apkFile=None):
     """Scan the apks in the given repo directory.
 
     This also extracts the icons.
@@ -351,7 +351,7 @@ def scan_apks(apps, apkcache, repodir, knownapks):
     icon_pat_nodpi = re.compile(".*icon='([^']+?)'.*")
     sdkversion_pat = re.compile(".*'([0-9]*)'.*")
     string_pat = re.compile(".*'([^']*)'.*")
-    for apkfile in glob.glob(os.path.join(repodir, '*.apk')):
+    for apkfile in glob.glob(os.path.join(repodir, '*.apk' if apkFile is None else (apkFile + '.apk'))):
 
         apkfilename = apkfile[len(repodir) + 1:]
         if ' ' in apkfilename:
@@ -848,6 +848,243 @@ def make_index(apps, apks, repodir, archive, categories):
     f.close()
 
 
+def sen5_make_index(apps, apks, repodir, categories):
+    """Make a repo index.
+
+    :param apps: fully populated apps list
+    :param apks: full populated apks list
+    :param repodir: the repo directory
+    :param categories: list of categories
+    """
+
+    doc = Document()
+
+    def addElement(name, value, doc, parent):
+        el = doc.createElement(name)
+        el.appendChild(doc.createTextNode(value))
+        parent.appendChild(el)
+
+    def addElementCDATA(name, value, doc, parent):
+        el = doc.createElement(name)
+        el.appendChild(doc.createCDATASection(value))
+        parent.appendChild(el)
+
+    root = doc.createElement("fdroid")
+    doc.appendChild(root)
+
+    repoel = doc.createElement("repo")
+
+    repoel.setAttribute("name", config['repo_name'])
+    if config['repo_maxage'] != 0:
+        repoel.setAttribute("maxage", str(config['repo_maxage']))
+    repoel.setAttribute("icon", os.path.basename(config['repo_icon']))
+    repoel.setAttribute("url", config['repo_url'])
+    addElement('description', config['repo_description'], doc, repoel)
+
+    repoel.setAttribute("version", "12")
+    repoel.setAttribute("timestamp", str(int(time.time())))
+
+    if 'repo_keyalias' in config:
+
+        # Generate a certificate fingerprint the same way keytool does it
+        # (but with slightly different formatting)
+        def cert_fingerprint(data):
+            digest = hashlib.sha256(data).digest()
+            ret = []
+            ret.append(' '.join("%02X" % ord(b) for b in digest))
+            return " ".join(ret)
+
+        def extract_pubkey():
+            p = FDroidPopen(['keytool', '-exportcert',
+                             '-alias', config['repo_keyalias'],
+                             '-keystore', config['keystore'],
+                             '-storepass:file', config['keystorepassfile']]
+                            + config['smartcardoptions'], output=False)
+            if p.returncode != 0:
+                msg = "Failed to get repo pubkey!"
+                if config['keystore'] == 'NONE':
+                    msg += ' Is your crypto smartcard plugged in?'
+                logging.critical(msg)
+                sys.exit(1)
+            global repo_pubkey_fingerprint
+            repo_pubkey_fingerprint = cert_fingerprint(p.output)
+            return "".join("%02x" % ord(b) for b in p.output)
+
+        repoel.setAttribute("pubkey", extract_pubkey())
+
+    root.appendChild(repoel)
+
+    for app in apps:
+
+        if app['Disabled'] is not None:
+            continue
+
+        # Get a list of the apks for this app...
+        apklist = []
+        for apk in apks:
+            if apk['id'] == app['id']:
+                apklist.append(apk)
+
+        if len(apklist) == 0:
+            continue
+
+        apel = doc.createElement("application")
+        apel.setAttribute("id", app['id'])
+        root.appendChild(apel)
+
+        addElement('id', app['id'], doc, apel)
+        if 'added' in app:
+            addElement('added', time.strftime('%Y-%m-%d', app['added']), doc, apel)
+        if 'lastupdated' in app:
+            addElement('lastupdated', time.strftime('%Y-%m-%d', app['lastupdated']), doc, apel)
+        addElement('name', app['Name'], doc, apel)
+        addElement('summary', app['Summary'], doc, apel)
+        if app['icon']:
+            addElement('icon', app['icon'], doc, apel)
+
+        def linkres(link):
+            for app in apps:
+                if app['id'] == link:
+                    return ("fdroid.app:" + link, app['Name'])
+            raise MetaDataException("Cannot resolve app id " + link)
+        addElement('desc',
+                   metadata.description_html(app['Description'], linkres),
+                   doc, apel)
+        addElement('license', app['License'], doc, apel)
+        if 'Categories' in app:
+            addElement('categories', ','.join(app["Categories"]), doc, apel)
+            # We put the first (primary) category in LAST, which will have
+            # the desired effect of making clients that only understand one
+            # category see that one.
+            addElement('category', app["Categories"][0], doc, apel)
+        addElement('web', app['Web Site'], doc, apel)
+        addElement('source', app['Source Code'], doc, apel)
+        addElement('tracker', app['Issue Tracker'], doc, apel)
+        if app['Donate']:
+            addElement('donate', app['Donate'], doc, apel)
+        if app['Bitcoin']:
+            addElement('bitcoin', app['Bitcoin'], doc, apel)
+        if app['Litecoin']:
+            addElement('litecoin', app['Litecoin'], doc, apel)
+        if app['Dogecoin']:
+            addElement('dogecoin', app['Dogecoin'], doc, apel)
+        if app['FlattrID']:
+            addElement('flattr', app['FlattrID'], doc, apel)
+
+        # These elements actually refer to the current version (i.e. which
+        # one is recommended. They are historically mis-named, and need
+        # changing, but stay like this for now to support existing clients.
+        addElement('marketversion', app['Current Version'], doc, apel)
+        addElement('marketvercode', app['Current Version Code'], doc, apel)
+
+        if app['AntiFeatures']:
+            af = app['AntiFeatures'].split(',')
+            # TODO: Temporarily not including UpstreamNonFree in the index,
+            # because current F-Droid clients do not understand it, and also
+            # look ugly when they encounter an unknown antifeature. This
+            # filtering can be removed in time...
+            if 'UpstreamNonFree' in af:
+                af.remove('UpstreamNonFree')
+            if af:
+                addElement('antifeatures', ','.join(af), doc, apel)
+        if app['Provides']:
+            pv = app['Provides'].split(',')
+            addElement('provides', ','.join(pv), doc, apel)
+        if app['Requires Root']:
+            addElement('requirements', 'root', doc, apel)
+
+        # Sort the apk list into version order, just so the web site
+        # doesn't have to do any work by default...
+        apklist = sorted(apklist, key=lambda apk: apk['versioncode'], reverse=True)
+
+        # Check for duplicates - they will make the client unhappy...
+        for i in range(len(apklist) - 1):
+            if apklist[i]['versioncode'] == apklist[i + 1]['versioncode']:
+                logging.critical("duplicate versions: '%s' - '%s'" % (
+                    apklist[i]['apkname'], apklist[i + 1]['apkname']))
+                sys.exit(1)
+
+        for apk in apklist:
+            apkel = doc.createElement("package")
+            apel.appendChild(apkel)
+            addElement('version', apk['version'], doc, apkel)
+            addElement('versioncode', str(apk['versioncode']), doc, apkel)
+            addElement('apkname', apk['apkname'], doc, apkel)
+            if 'srcname' in apk:
+                addElement('srcname', apk['srcname'], doc, apkel)
+            for hash_type in ['sha256']:
+                if hash_type not in apk:
+                    continue
+                hashel = doc.createElement("hash")
+                hashel.setAttribute("type", hash_type)
+                hashel.appendChild(doc.createTextNode(apk[hash_type]))
+                apkel.appendChild(hashel)
+            addElement('sig', apk['sig'], doc, apkel)
+            addElement('size', str(apk['size']), doc, apkel)
+            addElement('sdkver', str(apk['sdkversion']), doc, apkel)
+            if 'maxsdkversion' in apk:
+                addElement('maxsdkver', str(apk['maxsdkversion']), doc, apkel)
+            if 'added' in apk:
+                addElement('added', time.strftime('%Y-%m-%d', apk['added']), doc, apkel)
+            if app['Requires Root']:
+                if 'ACCESS_SUPERUSER' not in apk['permissions']:
+                    apk['permissions'].append('ACCESS_SUPERUSER')
+
+            if len(apk['permissions']) > 0:
+                addElement('permissions', ','.join(apk['permissions']), doc, apkel)
+            if 'nativecode' in apk and len(apk['nativecode']) > 0:
+                addElement('nativecode', ','.join(apk['nativecode']), doc, apkel)
+            if len(apk['features']) > 0:
+                addElement('features', ','.join(apk['features']), doc, apkel)
+
+    of = open(os.path.join(repodir, 'index.xml'), 'wb')
+    if options.pretty:
+        output = doc.toprettyxml()
+    else:
+        output = doc.toxml()
+    of.write(output)
+    of.close()
+
+    if 'repo_keyalias' in config:
+
+        logging.info("Creating signed index with this key (SHA256):")
+        logging.info("%s" % repo_pubkey_fingerprint)
+
+        # Create a jar of the index...
+        p = FDroidPopen(['jar', 'cf', 'index.jar', 'index.xml'], cwd=repodir)
+        if p.returncode != 0:
+            logging.critical("Failed to create jar file")
+            sys.exit(1)
+
+        # Sign the index...
+        args = ['jarsigner', '-keystore', config['keystore'],
+                '-storepass:file', config['keystorepassfile'],
+                '-digestalg', 'SHA1', '-sigalg', 'MD5withRSA',
+                os.path.join(repodir, 'index.jar'), config['repo_keyalias']]
+        if config['keystore'] == 'NONE':
+            args += config['smartcardoptions']
+        else:  # smardcards never use -keypass
+            args += ['-keypass:file', config['keypassfile']]
+        p = FDroidPopen(args)
+        # TODO keypass should be sent via stdin
+        if p.returncode != 0:
+            logging.critical("Failed to sign index")
+            sys.exit(1)
+
+    # Copy the repo icon into the repo directory...
+    icon_dir = os.path.join(repodir, 'icons')
+    iconfilename = os.path.join(icon_dir, os.path.basename(config['repo_icon']))
+    shutil.copyfile(config['repo_icon'], iconfilename)
+
+    # Write a category list in the repo to allow quick access...
+    catdata = ''
+    for cat in categories:
+        catdata += cat + '\n'
+    f = open(os.path.join(repodir, 'categories.txt'), 'w')
+    f.write(catdata)
+    f.close()
+
+
 def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversions):
 
     for app in apps:
@@ -887,8 +1124,6 @@ def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversi
 config = None
 options = None
 
-import pydevd
-pydevd.settrace('192.168.0.123', port=51234, stdoutToServer=True, stderrToServer=True)
 
 def main():
 
@@ -896,6 +1131,7 @@ def main():
 
     # Parse command line...
     parser = OptionParser()
+    parser.disable_interspersed_args()
     parser.add_option("-c", "--create-metadata", action="store_true", default=False,
                       help="Create skeleton metadata files that are missing")
     parser.add_option("--delete-unknown", action="store_true", default=False,
@@ -912,13 +1148,17 @@ def main():
                       help="Resize all the icons exceeding the max pixel size and exit")
     parser.add_option("-e", "--editor", default="/etc/alternatives/editor",
                       help="Specify editor to use in interactive mode. Default " +
-                      "is /etc/alternatives/editor")
+                           "is /etc/alternatives/editor")
     parser.add_option("-w", "--wiki", default=False, action="store_true",
                       help="Update the wiki")
     parser.add_option("", "--pretty", action="store_true", default=False,
                       help="Produce human-readable index.xml")
     parser.add_option("--clean", action="store_true", default=False,
                       help="Clean update - don't uses caches, reprocess all apks")
+
+    parser.add_option("--apkId", default=None, help="apk id")
+    parser.add_option("--apkFile", default=None, help="apk file")
+
     (options, args) = parser.parse_args()
 
     config = common.read_config(options)
@@ -941,7 +1181,8 @@ def main():
                 sys.exit(1)
 
     # Get all apps...
-    apps = metadata.read_metadata()
+    app = metadata.sen5_read_metadata(options.apkId)
+    apps = [app]
 
     # Generate a list of categories...
     categories = set()
@@ -961,10 +1202,9 @@ def main():
         apkcache = {}
     cachechanged = False
 
-    delete_disabled_builds(apps, apkcache, repodirs)
-
     # Scan all apks in the main repo
-    apks, cc = scan_apks(apps, apkcache, repodirs[0], knownapks)
+    apks, cc = scan_apks(apps, apkcache, repodirs[0], knownapks, options.apkFile)
+
     if cc:
         cachechanged = True
 
@@ -1010,14 +1250,6 @@ def main():
     if newmetadata:
         apps = metadata.read_metadata()
 
-    # Scan the archive repo for apks as well
-    if len(repodirs) > 1:
-        archapks, cc = scan_apks(apps, apkcache, repodirs[1], knownapks)
-        if cc:
-            cachechanged = True
-    else:
-        archapks = []
-
     # Some information from the apks needs to be applied up to the application
     # level. When doing this, we use the info from the most recent version's apk.
     # We deal with figuring out when the app was added and last updated at the
@@ -1026,7 +1258,7 @@ def main():
         bestver = 0
         added = None
         lastupdated = None
-        for apk in apks + archapks:
+        for apk in apks:
             if apk['id'] == app['id']:
                 if apk['versioncode'] > bestver:
                     bestver = apk['versioncode']
@@ -1062,16 +1294,8 @@ def main():
     # name comes from there!)
     apps = sorted(apps, key=lambda app: app['Name'].upper())
 
-    if len(repodirs) > 1:
-        archive_old_apks(apps, apks, archapks, repodirs[0], repodirs[1], config['archive_older'])
-
     # Make the index for the main repo...
     make_index(apps, apks, repodirs[0], False, categories)
-
-    # If there's an archive repo,  make the index for it. We already scanned it
-    # earlier on.
-    if len(repodirs) > 1:
-        make_index(apps, archapks, repodirs[1], True, categories)
 
     if config['update_stats']:
 
@@ -1101,7 +1325,7 @@ def main():
 
     # Update the wiki...
     if options.wiki:
-        update_wiki(apps, apks + archapks)
+        update_wiki(apps, apks)
 
     logging.info("Finished.")
 

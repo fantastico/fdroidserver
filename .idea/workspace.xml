@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="9bd8290a-8cee-4b92-8237-017b23068727" name="Default" comment="" />
+    <list default="true" id="9bd8290a-8cee-4b92-8237-017b23068727" name="Default" comment="">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/fdroidserver/sen5_update.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fdroid" afterPath="$PROJECT_DIR$/fdroid" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fdroidserver/metadata.py" afterPath="$PROJECT_DIR$/fdroidserver/metadata.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fdroidserver/update.py" afterPath="$PROJECT_DIR$/fdroidserver/update.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+    </list>
     <ignored path="fdroidserver.iws" />
     <ignored path=".idea/workspace.xml" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -23,101 +30,41 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="sen5db.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/sen5/sen5db.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="1159" max-vertical-offset="1463">
-              <caret line="61" column="7" selection-start-line="61" selection-start-column="7" selection-end-line="61" selection-end-column="7" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="xml2json.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/sen5/xml2json.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="1995" max-vertical-offset="2337">
-              <caret line="105" column="26" selection-start-line="105" selection-start-column="26" selection-end-line="105" selection-end-column="26" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="config.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/sen5/config.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-6.08" vertical-offset="0" max-vertical-offset="266">
-              <caret line="8" column="42" selection-start-line="8" selection-start-column="42" selection-end-line="8" selection-end-column="42" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="lint.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/fdroidserver/lint.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="2291" max-vertical-offset="4807">
-              <caret line="209" column="42" selection-start-line="209" selection-start-column="42" selection-end-line="209" selection-end-column="42" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="update.sh" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/update.sh">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="-1.52" vertical-offset="0" max-vertical-offset="152">
-              <caret line="2" column="0" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="gpgsign.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/fdroidserver/gpgsign.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="708" max-vertical-offset="1425">
-              <caret line="58" column="48" selection-start-line="58" selection-start-column="48" selection-end-line="58" selection-end-column="48" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="publish.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/fdroidserver/publish.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3325">
-              <caret line="12" column="65" selection-start-line="12" selection-start-column="65" selection-end-line="12" selection-end-column="65" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="server.py" pinned="false" current="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/fdroidserver/server.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="177.52" vertical-offset="4704" max-vertical-offset="5396">
-              <caret line="14" column="53" selection-start-line="14" selection-start-column="53" selection-end-line="14" selection-end-column="53" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="update.py" pinned="false" current="true" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/fdroidserver/update.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="30.14853" vertical-offset="0" max-vertical-offset="20824">
-              <caret line="1096" column="37" selection-start-line="1096" selection-start-column="37" selection-end-line="1096" selection-end-column="37" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="fdroid" pinned="false" current="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/fdroid">
           <provider selected="true" editor-type-id="text-editor">
-            <state vertical-scroll-proportion="0.0" vertical-offset="1083" max-vertical-offset="1919">
-              <caret line="92" column="17" selection-start-line="92" selection-start-column="5" selection-end-line="92" selection-end-column="17" />
+            <state vertical-scroll-proportion="0.0" vertical-offset="794" max-vertical-offset="1957">
+              <caret line="54" column="0" selection-start-line="54" selection-start-column="0" selection-end-line="54" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="metadata.py" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/fdroidserver/metadata.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0" vertical-offset="9591" max-vertical-offset="17917">
+              <caret line="522" column="0" selection-start-line="522" selection-start-column="0" selection-end-line="522" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="sen5_update.py" pinned="false" current="true" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/fdroidserver/sen5_update.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.98623854" vertical-offset="19216" max-vertical-offset="25118">
+              <caret line="1051" column="0" selection-start-line="1051" selection-start-column="0" selection-end-line="1051" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="common.py" pinned="false" current="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/fdroidserver/common.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state vertical-scroll-proportion="0.0" vertical-offset="28611" max-vertical-offset="33725">
+              <caret line="1533" column="8" selection-start-line="1533" selection-start-column="8" selection-end-line="1533" selection-end-column="8" />
               <folding />
             </state>
           </provider>
@@ -151,10 +98,13 @@
         <option value="$PROJECT_DIR$/sen5/__init__.py" />
         <option value="$PROJECT_DIR$/sen5/config.py" />
         <option value="$PROJECT_DIR$/setup.py" />
-        <option value="$PROJECT_DIR$/fdroidserver/update.py" />
         <option value="$PROJECT_DIR$/sen5/sen5db.py" />
-        <option value="$PROJECT_DIR$/fdroid" />
         <option value="$PROJECT_DIR$/sen5/xml2json.py" />
+        <option value="$PROJECT_DIR$/.gitignore" />
+        <option value="$PROJECT_DIR$/fdroidserver/update.py" />
+        <option value="$PROJECT_DIR$/fdroid" />
+        <option value="$PROJECT_DIR$/fdroidserver/metadata.py" />
+        <option value="$PROJECT_DIR$/fdroidserver/sen5_update.py" />
       </list>
     </option>
   </component>
@@ -190,6 +140,7 @@
       <sortByType />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -238,7 +189,6 @@
           </PATH>
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -267,6 +217,7 @@
     <property name="options.splitter.details.proportions" value="0.2" />
     <property name="options.searchVisible" value="true" />
     <property name="FullScreen" value="false" />
+    <property name="LayoutCode.rearrangeEntriesPython" value="false" />
   </component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
@@ -275,8 +226,8 @@
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="Z:\users\lijiyang\appstore\fdroidserver" />
       <recent name="Z:\users\lijiyang\appstore\fdroidserver\fdroidserver" />
+      <recent name="Z:\users\lijiyang\appstore\fdroidserver" />
     </key>
   </component>
   <component name="RunManager" selected="Python Remote Debug.remote">
@@ -364,7 +315,17 @@
       <option name="PARAMETERS" value="" />
       <method />
     </configuration>
-    <configuration default="true" type="JavascriptDebugType" factoryName="JavaScript Debug">
+    <configuration default="true" type="PyRemoteDebugConfigurationType" factoryName="Python Remote Debug">
+      <module name="" />
+      <option name="PORT" value="0" />
+      <option name="HOST" value="null" />
+      <PathMappingSettings>
+        <option name="pathMappings">
+          <list />
+        </option>
+      </PathMappingSettings>
+      <option name="REDIRECT_OUTPUT" value="true" />
+      <option name="SUSPEND_AFTER_CONNECT" value="true" />
       <method />
     </configuration>
     <configuration default="true" type="tests" factoryName="Unittests">
@@ -390,17 +351,7 @@
       <option name="USE_PARAM" value="false" />
       <method />
     </configuration>
-    <configuration default="true" type="PyRemoteDebugConfigurationType" factoryName="Python Remote Debug">
-      <module name="" />
-      <option name="PORT" value="0" />
-      <option name="HOST" value="null" />
-      <PathMappingSettings>
-        <option name="pathMappings">
-          <list />
-        </option>
-      </PathMappingSettings>
-      <option name="REDIRECT_OUTPUT" value="true" />
-      <option name="SUSPEND_AFTER_CONNECT" value="true" />
+    <configuration default="true" type="JavascriptDebugType" factoryName="JavaScript Debug">
       <method />
     </configuration>
     <configuration default="true" type="tests" factoryName="Doctests">
@@ -497,7 +448,7 @@
     <option name="localTasksCounter" value="6" />
     <servers />
   </component>
-  <component name="TodoView" selected-index="4">
+  <component name="TodoView" selected-index="0">
     <todo-panel id="selected-file">
       <are-packages-shown value="false" />
       <are-modules-shown value="false" />
@@ -519,27 +470,27 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1456" height="854" extended-state="6" />
-    <editor active="true" />
+    <editor active="false" />
     <layout>
-      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32841823" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3297587" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32918397" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32918397" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
+      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32918397" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.33886585" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.29027778" sideWeight="0.73004353" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.26995647" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.1683381" sideWeight="0.73004353" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.076071925" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3297587" sideWeight="0.5" order="9" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.61538464" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.6141079" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.32707775" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32841823" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
   <component name="Vcs.Log.UiProperties">
@@ -572,16 +523,52 @@
           <line>692</line>
           <option name="timeStamp" value="35" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" type="python-line">
+          <url>file://$PROJECT_DIR$/fdroidserver/sen5_update.py</url>
+          <line>1297</line>
+          <option name="timeStamp" value="277" />
+        </line-breakpoint>
       </breakpoints>
-      <option name="time" value="80" />
+      <option name="time" value="283" />
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/fdroid">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1957">
+          <caret line="50" column="0" selection-start-line="50" selection-start-column="0" selection-end-line="50" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/update.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="17507" max-vertical-offset="20862">
+          <caret line="946" column="0" selection-start-line="946" selection-start-column="0" selection-end-line="946" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/metadata.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="8949" max-vertical-offset="17480">
+          <caret line="471" column="22" selection-start-line="471" selection-start-column="22" selection-end-line="471" selection-end-column="22" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="2622" max-vertical-offset="34010">
+          <caret line="138" column="16" selection-start-line="138" selection-start-column="16" selection-end-line="138" selection-end-column="16" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/sen5/sen5db.py">
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1463">
           <caret line="61" column="7" selection-start-line="61" selection-start-column="7" selection-end-line="61" selection-end-column="7" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -589,7 +576,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="1995" max-vertical-offset="2337">
           <caret line="105" column="26" selection-start-line="105" selection-start-column="26" selection-end-line="105" selection-end-column="26" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -597,7 +583,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="57" max-vertical-offset="266">
           <caret line="3" column="0" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -662,27 +647,12 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/README">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.6572327" vertical-offset="0" max-vertical-offset="684">
-          <caret line="22" column="8" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
       <provider editor-type-id="com.intellij.persistence.database.editor.CsvTableFileEditorProvider">
         <state />
       </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/setup.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.36" vertical-offset="0" max-vertical-offset="893">
-          <caret line="12" column="17" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fdroidserver/common.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.04631579" vertical-offset="30967" max-vertical-offset="33725">
-          <caret line="1646" column="4" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        <state vertical-scroll-proportion="0.6572327" vertical-offset="0" max-vertical-offset="684">
+          <caret line="22" column="8" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
@@ -705,7 +675,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="1159" max-vertical-offset="1463">
           <caret line="61" column="7" selection-start-line="61" selection-start-column="7" selection-end-line="61" selection-end-column="7" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -713,15 +682,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="1995" max-vertical-offset="2337">
           <caret line="105" column="26" selection-start-line="105" selection-start-column="26" selection-end-line="105" selection-end-column="26" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/sen5/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="-6.08" vertical-offset="0" max-vertical-offset="266">
-          <caret line="8" column="42" selection-start-line="8" selection-start-column="42" selection-end-line="8" selection-end-column="42" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -729,7 +689,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="2291" max-vertical-offset="4807">
           <caret line="209" column="42" selection-start-line="209" selection-start-column="42" selection-end-line="209" selection-end-column="42" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -737,15 +696,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="-1.52" vertical-offset="0" max-vertical-offset="152">
           <caret line="2" column="0" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fdroid">
-      <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="0.0" vertical-offset="1748" max-vertical-offset="1938">
-          <caret line="92" column="17" selection-start-line="92" selection-start-column="5" selection-end-line="92" selection-end-column="17" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -753,7 +703,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="708" max-vertical-offset="1425">
           <caret line="58" column="48" selection-start-line="58" selection-start-column="48" selection-end-line="58" selection-end-column="48" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -761,22 +710,120 @@
       <provider selected="true" editor-type-id="text-editor">
         <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3325">
           <caret line="12" column="65" selection-start-line="12" selection-start-column="65" selection-end-line="12" selection-end-column="65" />
-          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/fdroidserver/server.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="177.52" vertical-offset="4704" max-vertical-offset="5396">
-          <caret line="14" column="53" selection-start-line="14" selection-start-column="53" selection-end-line="14" selection-end-column="53" />
+        <state vertical-scroll-proportion="0.32947975" vertical-offset="0" max-vertical-offset="5396">
+          <caret line="12" column="58" selection-start-line="12" selection-start-column="58" selection-end-line="12" selection-end-column="58" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/stats.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.18549512" vertical-offset="0" max-vertical-offset="5548">
+          <caret line="7" column="21" selection-start-line="7" selection-start-column="21" selection-end-line="7" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/makebuildserver">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="4636">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.34449095" vertical-offset="0" max-vertical-offset="717">
+          <caret line="13" column="6" selection-start-line="13" selection-start-column="6" selection-end-line="13" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/sen5/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.37717122" vertical-offset="0" max-vertical-offset="403">
+          <caret line="8" column="42" selection-start-line="8" selection-start-column="42" selection-end-line="8" selection-end-column="42" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm30/system/python_stubs/565819735/__builtin__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.33142856" vertical-offset="77100" max-vertical-offset="98097">
+          <caret line="4064" column="8" selection-start-line="4064" selection-start-column="8" selection-end-line="4064" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://D:/Softwares/Python/Python27/Lib/pickle.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="26429">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://D:/Softwares/Python/Python27/Lib/re.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="6289">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/setup.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.3653846" vertical-offset="0" max-vertical-offset="893">
+          <caret line="12" column="17" selection-start-line="12" selection-start-column="17" selection-end-line="12" selection-end-column="17" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/fdroidserver/update.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state vertical-scroll-proportion="30.14853" vertical-offset="0" max-vertical-offset="20824">
-          <caret line="1096" column="37" selection-start-line="1096" selection-start-column="37" selection-end-line="1096" selection-end-column="37" />
+        <state vertical-scroll-proportion="-1.5433186" vertical-offset="1583" max-vertical-offset="20862">
+          <caret line="45" column="36" selection-start-line="45" selection-start-column="36" selection-end-line="45" selection-end-column="36" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://D:/Softwares/Python/Python27/Lib/optparse.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.33333334" vertical-offset="22393" max-vertical-offset="32452">
+          <caret line="1190" column="8" selection-start-line="1190" selection-start-column="8" selection-end-line="1190" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="28611" max-vertical-offset="33725">
+          <caret line="1533" column="8" selection-start-line="1533" selection-start-column="8" selection-end-line="1533" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroid">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="832" max-vertical-offset="1957">
+          <caret line="54" column="0" selection-start-line="54" selection-start-column="0" selection-end-line="54" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/metadata.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.0" vertical-offset="9591" max-vertical-offset="17917">
+          <caret line="522" column="0" selection-start-line="522" selection-start-column="0" selection-end-line="522" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fdroidserver/sen5_update.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state vertical-scroll-proportion="0.98623854" vertical-offset="19216" max-vertical-offset="25118">
+          <caret line="1051" column="0" selection-start-line="1051" selection-start-column="0" selection-end-line="1051" selection-end-column="0" />
           <folding />
         </state>
       </provider>

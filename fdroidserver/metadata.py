@@ -68,7 +68,7 @@ app_defaults = OrderedDict([
     ('Current Version', ''),
     ('Current Version Code', '0'),
     ('No Source Since', ''),
-    ])
+])
 
 
 # In the order in which they are laid out on files
@@ -101,7 +101,7 @@ flag_defaults = OrderedDict([
     ('preassemble', []),
     ('antcommand', None),
     ('novcheck', False),
-    ])
+])
 
 
 # Designates a metadata field type and checks that it matches
@@ -113,7 +113,6 @@ flag_defaults = OrderedDict([
 # 'attrs'    - Build attributes (attr=value) of this type
 #
 class FieldValidator():
-
     def __init__(self, name, matching, sep, fields, attrs):
         self.name = name
         self.matching = matching
@@ -164,54 +163,54 @@ valuetypes = {
     FieldValidator("Bitcoin address",
                    r'^[a-zA-Z0-9]{27,34}$', None,
                    ["Bitcoin"],
-                   []),
+        []),
 
     FieldValidator("Litecoin address",
                    r'^L[a-zA-Z0-9]{33}$', None,
                    ["Litecoin"],
-                   []),
+        []),
 
     FieldValidator("Dogecoin address",
                    r'^D[a-zA-Z0-9]{33}$', None,
                    ["Dogecoin"],
-                   []),
+        []),
 
     FieldValidator("Boolean",
                    ['Yes', 'No'], None,
                    ["Requires Root"],
-                   []),
+        []),
 
     FieldValidator("bool",
                    ['yes', 'no'], None,
-                   [],
+        [],
                    ['submodules', 'oldsdkloc', 'forceversion', 'forcevercode',
                     'novcheck']),
 
     FieldValidator("Repo Type",
                    ['git', 'git-svn', 'svn', 'hg', 'bzr', 'srclib'], None,
                    ["Repo Type"],
-                   []),
+        []),
 
     FieldValidator("Archive Policy",
                    r'^[0-9]+ versions$', None,
                    ["Archive Policy"],
-                   []),
+        []),
 
     FieldValidator("Anti-Feature",
                    ["Ads", "Tracking", "NonFreeNet", "NonFreeDep", "NonFreeAdd", "UpstreamNonFree"], ',',
                    ["AntiFeatures"],
-                   []),
+        []),
 
     FieldValidator("Auto Update Mode",
                    r"^(Version .+|None)$", None,
                    ["Auto Update Mode"],
-                   []),
+        []),
 
     FieldValidator("Update Check Mode",
                    r"^(Tags|Tags .+|RepoManifest|RepoManifest/.+|RepoTrunk|HTTP|Static|None)$", None,
                    ["Update Check Mode"],
-                   [])
-    }
+        [])
+}
 
 
 # Check an app's metadata information for integrity errors
@@ -405,7 +404,6 @@ def description_html(lines, linkres):
 
 
 def parse_srclib(metafile):
-
     thisinfo = {}
     if metafile and not isinstance(metafile, file):
         metafile = open(metafile, "r")
@@ -470,7 +468,6 @@ def read_srclibs():
 # Read all metadata. Returns a list of 'app' objects (which are dictionaries as
 # returned by the parse_metadata function.
 def read_metadata(xref=True):
-
     # Always read the srclibs before the apps, since they can use a srlib as
     # their source repository.
     read_srclibs()
@@ -494,6 +491,7 @@ def read_metadata(xref=True):
                 if app['id'] == link:
                     return ("fdroid.app:" + link, "Dummy name - don't know yet")
             raise MetaDataException("Cannot resolve app id " + link)
+
         for app in apps:
             try:
                 description_html(app['Description'], linkres)
@@ -502,6 +500,40 @@ def read_metadata(xref=True):
                                         " - " + str(e))
 
     return apps
+
+
+# Read all metadata. Returns a list of 'app' objects (which are dictionaries as
+# returned by the parse_metadata function.
+def sen5_read_metadata(apk_id=None, xref=True):
+    if apk_id is None:
+        return read_metadata(xref)
+
+    # Always read the srclibs before the apps, since they can use a srlib as
+    # their source repository.
+    read_srclibs()
+
+    for basedir in ('metadata', 'tmp'):
+        if not os.path.exists(basedir):
+            os.makedirs(basedir)
+
+    metafile = os.path.join('metadata', apk_id + '.txt')
+    app = parse_metadata(metafile)
+    check_metadata(app)
+
+    if xref:
+        # Parse all descriptions at load time, just to ensure cross-referencing
+        # errors are caught early rather than when they hit the build server.
+        def linkres(link):
+            if app['id'] == link:
+                return "fdroid.app:" + link, "Dummy name - don't know yet"
+            raise MetaDataException("Cannot resolve app id " + link)
+
+        try:
+            description_html(app['Description'], linkres)
+        except Exception, e:
+            raise MetaDataException("Problem with description of " + app['id'] + " - " + str(e))
+
+    return app
 
 
 # Get the type expected for a given metadata field.
@@ -534,7 +566,6 @@ def flagtype(name):
 
 
 def fill_build_defaults(build):
-
     def get_build_type():
         for t in ['maven', 'gradle', 'kivy']:
             if build[t]:
@@ -552,8 +583,8 @@ def fill_build_defaults(build):
 
 # Parse metadata for a single application.
 #
-#  'metafile' - the filename to read. The package id for the application comes
-#               from this filename. Pass None to get a blank entry.
+# 'metafile' - the filename to read. The package id for the application comes
+# from this filename. Pass None to get a blank entry.
 #
 # Returns a dictionary containing all the details of the application. There are
 # two major kinds of information in the dictionary. Keys beginning with capital
@@ -563,7 +594,7 @@ def fill_build_defaults(build):
 #
 # Known keys not originating from the metadata are:
 #
-#  'id'               - the application's package ID
+# 'id'               - the application's package ID
 #  'builds'           - a list of dictionaries containing build information
 #                       for each defined build
 #  'comments'         - a list of comments from the metadata file. Each is
@@ -576,7 +607,6 @@ def fill_build_defaults(build):
 #                       metadata file.
 #
 def parse_metadata(metafile):
-
     linedesc = None
 
     def add_buildflag(p, thisbuild):
@@ -740,20 +770,20 @@ def parse_metadata(metafile):
                 curbuild['vercode'] = vv[1]
                 if curbuild['vercode'] in vc_seen:
                     raise MetaDataException('Duplicate build recipe found for vercode %s in %s' % (
-                                            curbuild['vercode'], linedesc))
+                        curbuild['vercode'], linedesc))
                 vc_seen[curbuild['vercode']] = True
                 buildlines = []
                 mode = 3
             elif fieldtype == 'obsolete':
-                pass        # Just throw it away!
+                pass  # Just throw it away!
             else:
                 raise MetaDataException("Unrecognised field type for " + field + " in " + linedesc)
-        elif mode == 1:     # Multiline field
+        elif mode == 1:  # Multiline field
             if line == '.':
                 mode = 0
             else:
                 thisinfo[field].append(line)
-        elif mode == 2:     # Line continuation mode in Build Version
+        elif mode == 2:  # Line continuation mode in Build Version
             if line.endswith("\\"):
                 buildlines.append(line[:-1])
             else:
@@ -786,7 +816,6 @@ def parse_metadata(metafile):
 # 'dest'    - The path to the output file
 # 'app'     - The app data
 def write_metadata(dest, app):
-
     def writecomments(key):
         written = 0
         for pf, comment in app['comments']:
