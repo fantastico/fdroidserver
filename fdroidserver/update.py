@@ -887,8 +887,6 @@ def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversi
 config = None
 options = None
 
-import pydevd
-pydevd.settrace('192.168.0.123', port=51234, stdoutToServer=True, stderrToServer=True)
 
 def main():
 
