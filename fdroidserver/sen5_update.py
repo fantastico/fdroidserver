@@ -543,8 +543,7 @@ def scan_apks(repo_dir, knownapks, apkFile=None):
             continue
         if last_density is None:
             continue
-        logging.debug("Density %s not available, copying from lower density %s"
-                          % (density, last_density))
+        logging.debug("Density %s not available, copying from lower density %s" % (density, last_density))
 
         shutil.copyfile(
             os.path.join(get_icon_dir(repo_dir, last_density), iconfilename),
@@ -581,15 +580,15 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     if app['Disabled'] is not None:
         return
 
-    # Check for duplicates
-    if app_entry:
-        for apk_entry in app_entry['package']:
-            if apk_entry['versioncode'] == apk['versioncode']:
-                logging.critical("duplicate versions: '%s' - '%s'" % (apk_entry['apkname'], apk_entry['apkname']))
-                sys.exit(1)
+        # Check for duplicates
+        #  if app_entry:
+        #    for apk_entry in app_entry['package']:
+        #       if apk_entry['versioncode'] == apk['versioncode']:
+        #           logging.critical("duplicate versions: '%s' - '%s'" % (apk_entry['apkname'], apk_entry['apkname']))
+        #           sys.exit(1)
 
     if app_entry:
-        application = app_entry()
+        application = app_entry
     else:
         application = dict()
     application['id'] = app['id']
@@ -600,6 +599,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     if 'lastupdated' in app:
         application['lastupdated'] = time.strftime('%Y-%m-%d', app['lastupdated'])
     application['name'] = app['Name']
+    application['latestversion'] = app['latestversion']
     application['summary'] = app['Summary']
     if app['icon']:
         application['icon'] = app['icon']
@@ -637,7 +637,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     # one is recommended. They are historically mis-named, and need
     # changing, but stay like this for now to support existing clients.
     application['marketversion'] = app['Current Version']
-    application['marketvercode'] = app['Current Version Code']
+    application['marketvercode'] = int(app['Current Version Code'])
 
     if app['AntiFeatures']:
         af = app['AntiFeatures'].split(',')
@@ -659,7 +659,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     # pack apk
     package = dict()
     package['version'] = apk['version']
-    package['versioncode'] = str(apk['versioncode'])
+    package['versioncode'] = apk['versioncode']
     package['apkname'] = str(apk['apkname'])
 
     if 'srcname' in apk:
@@ -688,17 +688,18 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     if len(apk['features']) > 0:
         package['features'] = ','.join(apk['features'])
 
-    if package in application:
-        application['package'].append(package)
-    else:
-        application['package'] = package
-
     if not repo:
         if not apps_db.check_app_group_exist({'name': 'common'}):
             apps_db.create_common_repository
         application['repo'] = 'common'
 
-    apps_db.insert_app(application)
+    if 'package' in application:
+        del application['package']
+        apps_db.add_apk(application['_id'], package)
+        apps_db.update_app(application)
+    else:
+        application['package'] = [package]
+        apps_db.insert_app(application)
 
 
 def repo_init(repo_dir):
@@ -841,16 +842,6 @@ def main():
     # Read known apks data (will be updated and written back when we've finished)
     knownapks = common.KnownApks()
 
-    # Gather information about all the apk files in the repo directory, using
-    # cached data if possible.
-    apkcachefile = os.path.join('tmp', 'apkcache')
-    if not options.clean and os.path.exists(apkcachefile):
-        with open(apkcachefile, 'rb') as cf:
-            apkcache = pickle.load(cf)
-    else:
-        apkcache = {}
-    cachechanged = False
-
     # Scan all apks in the main repo
     apk = scan_apks(repodirs, knownapks, options.apkFile)
 
@@ -863,40 +854,31 @@ def main():
 
     app_entry = apps_db.find_app({'_id': app['id']})
 
-    if app_entry:
-        bestver = 0
-        added = None
-        last_updated = None
-        for apk_entry in app_entry['package']:
-            if apk_entry['versioncode'] > bestver:
-                bestver = apk_entry['versioncode']
-                bestapk = apk_entry
+    if not app_entry:
+        app['added'] = apk['added']
+        app['lastupdated'] = apk['added']
+        if app['Name'] is None:
+            app['Name'] = app['id']
+        app['icon'] = apk['icon']
+        app['latestversion'] = apk['versioncode']
+    else:
+        app['added'] = time.strptime(str(app_entry['added']), '%Y-%m-%d')
 
-            if 'added' in apk_entry:
-                if not added or apk_entry['added'] < added:
-                    added = apk_entry['added']
-                if not last_updated or apk_entry['added'] > last_updated:
-                    last_updated = apk_entry['added']
-
-        if added != app_entry['added']:
-            app['added'] = added
+        last_updated = time.strptime(str(app_entry['lastupdated']), '%Y-%m-%d')
+        if apk['added'] > last_updated:
+            app['lastupdated'] = apk['added']
         else:
-            logging.warn("Don't know when " + app['id'] + " was added")
-
-        if last_updated != app_entry['lastupdated']:
             app['lastupdated'] = last_updated
-        else:
-            logging.warn("Don't know when " + app['id'] + " was last updated")
 
-        if bestver == 0:
+        if app_entry['latestversion'] > apk['versioncode']:
+            app['Name'] = str(app_entry['name'])
+            app['icon'] = str(app_entry['icon'])
+            app['latestversion'] = app_entry['latestversion']
+        else:
             if app['Name'] is None:
                 app['Name'] = app['id']
-            app['icon'] = None
-            logging.warn("Application " + app['id'] + " has no packages")
-        else:
-            if app['Name'] is None:
-                app['Name'] = bestapk['name']
-            app['icon'] = bestapk['icon'] if 'icon' in bestapk else None
+            app['icon'] = apk['icon'] if 'icon' in apk else None
+            app['latestversion'] = apk['versioncode']
 
     # Make the index for the main repo...
     sen5_make_index(app, app_entry, apk, categories, repodirs)

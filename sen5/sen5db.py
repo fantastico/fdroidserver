@@ -93,6 +93,12 @@ class Sen5AppsDB:
     def find_app(self, query):
         return self.apps.find_one(query)
 
+    def update_app(self, app):
+        self.apps.update({'_id': app['id']}, {'$set': app})
+
+    def add_apk(self, _id, apk):
+        self.apps.update({'_id': _id}, {'$push': {'package': apk}})
+
 
 def update_db():
     # db = Sen5DB(1)

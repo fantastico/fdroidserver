@@ -504,9 +504,7 @@ def read_metadata(xref=True):
 
 # Read all metadata. Returns a list of 'app' objects (which are dictionaries as
 # returned by the parse_metadata function.
-def sen5_read_metadata(apk_id=None, xref=True):
-    if apk_id is None:
-        return read_metadata(xref)
+def sen5_read_metadata(apk_id, xref=True):
 
     # Always read the srclibs before the apps, since they can use a srlib as
     # their source repository.
