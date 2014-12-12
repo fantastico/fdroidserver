@@ -689,9 +689,12 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         package['features'] = ','.join(apk['features'])
 
     if not repo:
-        if not apps_db.check_app_group_exist({'name': 'common'}):
-            apps_db.create_common_repository
-        application['repo'] = 'common'
+        if not 'repo' in application:
+            if not apps_db.check_app_group_exist({'_id': 'common'}):
+                apps_db.create_common_repository()
+            application['repo'] = 'common'
+    else:
+        application['repo'] = repo
 
     if 'package' in application:
         del application['package']
@@ -705,6 +708,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
 def repo_init(repo_dir):
     repo = dict()
 
+    repo['_id'] = config['repo_name']
     repo['@name'] = config['repo_name']
     if config['repo_maxage'] != 0:
         repo['@maxage'] = str(config['repo_maxage'])
@@ -796,6 +800,7 @@ def main():
 
     parser.add_option("--apkId", default=None, help="apk id")
     parser.add_option("--apkFile", default=None, help="apk file")
+    parser.add_option("--repo", default=None, help="apk file")
     parser.add_option("", "--init", default=False, action="store_true", help="repo init")
 
     (options, args) = parser.parse_args()
@@ -803,6 +808,7 @@ def main():
     config = common.read_config(options)
 
     repodirs = 'repo'
+    repo = options.repo
     if config['archive_older'] != 0:
         repodirs.append('archive')
         if not os.path.exists('archive'):
@@ -881,7 +887,7 @@ def main():
             app['latestversion'] = apk['versioncode']
 
     # Make the index for the main repo...
-    sen5_make_index(app, app_entry, apk, categories, repodirs)
+    sen5_make_index(app, app_entry, apk, categories, repo)
 
     if config['update_stats']:
         # Update known apks info...

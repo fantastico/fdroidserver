@@ -48,7 +48,6 @@ class Sen5DB:
              'marking': 0})
 
     def save(self, apps):
-        # db.apps.update({'id': app_body['id']}, app_body, upsert=True)
         self.apps.insert(apps)
 
     def update(self):
@@ -78,14 +77,14 @@ class Sen5AppsDB:
         self.main_repo = self.database['main_repo']
 
     def check_app_group_exist(self, app_search_condition):
-        result = self.apps.find_one(app_search_condition, {'_id': 1})
+        result = self.repositories.find_one(app_search_condition, {'_id': 1})
         if result is None:
             return False
         else:
             return True
 
     def create_common_repository(self):
-        return self.apps.insert(common_repository)
+        return self.repositories.insert(common_repository)
 
     def insert_app(self, app):
         return self.apps.insert(app)
@@ -106,7 +105,6 @@ def update_db():
     db = Sen5AppsDB()
     result = db.create_common_repository()
     print result
-
 
 
 def main():
