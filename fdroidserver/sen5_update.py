@@ -575,17 +575,18 @@ repo_pubkey_fingerprint = None
 from sen5 import sen5db
 apps_db = sen5db.Sen5AppsDB()
 
+
 def sen5_make_index(app, app_entry, apk, categories, repo=None):
 
     if app['Disabled'] is not None:
         return
 
-        # Check for duplicates
-        #  if app_entry:
-        #    for apk_entry in app_entry['package']:
-        #       if apk_entry['versioncode'] == apk['versioncode']:
-        #           logging.critical("duplicate versions: '%s' - '%s'" % (apk_entry['apkname'], apk_entry['apkname']))
-        #           sys.exit(1)
+    # Check for duplicates
+    if app_entry:
+        for apk_entry in app_entry['apks']:
+            if apk_entry['vercode'] == apk['versioncode']:
+                logging.critical("duplicate versions: '%s' - '%s'" % (apk_entry['apkname'], apk_entry['apkname']))
+                sys.exit(1)
 
     if app_entry:
         application = app_entry
@@ -609,7 +610,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
             return ("fdroid.app:" + link, app['Name'])
         raise MetaDataException("Cannot resolve app id " + link)
 
-    application['desc'] = metadata.description_html(app['Description'], linkres)
+    application['description'] = metadata.description_html(app['Description'], linkres)
     application['license'] = app['License']
     if 'Categories' in app:
         application['categories'] = ','.join(app["Categories"])
@@ -618,20 +619,20 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         # category see that one.
         application['category'] = app["Categories"][0]
 
-    application['web'] = app['Web Site']
-    application['source'] = app['Source Code']
-    application['tracker'] = app['Issue Tracker']
+    application['webURL'] = app['Web Site']
+    application['sourceURL'] = app['Source Code']
+    application['trackerURL'] = app['Issue Tracker']
 
     if app['Donate']:
-        application['donate'] = app['Donate']
+        application['donateURL'] = app['Donate']
     if app['Bitcoin']:
-        application['bitcoin'] = app['Bitcoin']
+        application['bitcoinAddr'] = app['Bitcoin']
     if app['Litecoin']:
-        application['litecoin'] = app['Litecoin']
+        application['litecoinAddr'] = app['Litecoin']
     if app['Dogecoin']:
-        application['dogecoin'] = app['Dogecoin']
+        application['dogecoinAddr'] = app['Dogecoin']
     if app['FlattrID']:
-        application['flattr'] = app['FlattrID']
+        application['flattrID'] = app['FlattrID']
 
     # These elements actually refer to the current version (i.e. which
     # one is recommended. They are historically mis-named, and need
@@ -659,7 +660,7 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     # pack apk
     package = dict()
     package['version'] = apk['version']
-    package['versioncode'] = apk['versioncode']
+    package['vercode'] = apk['versioncode']
     package['apkname'] = str(apk['apkname'])
 
     if 'srcname' in apk:
@@ -667,15 +668,13 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     for hash_type in ['sha256']:
         if hash_type not in apk:
             continue
-        hash = dict()
-        hash['@type'] = hash_type
-        hash['#content'] = apk[hash_type]
-        package['hash'] = hash
+        package['hashType'] = hash_type
+        package['hash'] = apk[hash_type]
     package['sig'] = apk['sig']
     package['size'] = str(apk['size'])
-    package['sdkver'] = str(apk['sdkversion'])
+    package['minSdkVersion'] = str(apk['sdkversion'])
     if 'maxsdkversion' in apk:
-        package['maxsdkver'] = str(apk['maxsdkversion'])
+        package['maxSdkVersion'] = str(apk['maxsdkversion'])
     if 'added' in apk:
         package['added'] = time.strftime('%Y-%m-%d', apk['added'])
     if app['Requires Root']:
@@ -689,22 +688,26 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         package['features'] = ','.join(apk['features'])
 
     if not repo:
-        if not apps_db.check_app_group_exist({'name': 'common'}):
-            apps_db.create_common_repository
-        application['repo'] = 'common'
+        if not 'repo' in application:
+            if not apps_db.check_app_group_exist({'_id': 'common'}):
+                apps_db.create_common_repository()
+            application['repo'] = 'common'
+    else:
+        application['repo'] = repo
 
-    if 'package' in application:
-        del application['package']
+    if 'apks' in application:
+        del application['apks']
         apps_db.add_apk(application['_id'], package)
         apps_db.update_app(application)
     else:
-        application['package'] = [package]
+        application['apks'] = [package]
         apps_db.insert_app(application)
 
 
 def repo_init(repo_dir):
     repo = dict()
 
+    repo['_id'] = config['repo_name']
     repo['@name'] = config['repo_name']
     if config['repo_maxage'] != 0:
         repo['@maxage'] = str(config['repo_maxage'])
@@ -796,6 +799,7 @@ def main():
 
     parser.add_option("--apkId", default=None, help="apk id")
     parser.add_option("--apkFile", default=None, help="apk file")
+    parser.add_option("--repo", default=None, help="apk file")
     parser.add_option("", "--init", default=False, action="store_true", help="repo init")
 
     (options, args) = parser.parse_args()
@@ -803,6 +807,7 @@ def main():
     config = common.read_config(options)
 
     repodirs = 'repo'
+    repo = options.repo
     if config['archive_older'] != 0:
         repodirs.append('archive')
         if not os.path.exists('archive'):
@@ -881,7 +886,7 @@ def main():
             app['latestversion'] = apk['versioncode']
 
     # Make the index for the main repo...
-    sen5_make_index(app, app_entry, apk, categories, repodirs)
+    sen5_make_index(app, app_entry, apk, categories, repo)
 
     if config['update_stats']:
         # Update known apks info...
