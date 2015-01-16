@@ -581,13 +581,6 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     if app['Disabled'] is not None:
         return
 
-    # Check for duplicates
-    if app_entry:
-        for apk_entry in app_entry['apks']:
-            if apk_entry['vercode'] == apk['versioncode']:
-                logging.critical("duplicate versions: '%s' - '%s'" % (apk_entry['apkname'], apk_entry['apkname']))
-                sys.exit(1)
-
     if app_entry:
         application = app_entry
     else:
@@ -706,7 +699,14 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         application['pictures'] = []
 
     if 'apks' in application:
-        application['apks'].append(package)
+        has_apk = False
+        for i in range(0, len(application['apks'])):
+            if application['apks'][i]['vercode'] == package['vercode']:
+                application['apks'][i] = package
+                has_apk = True
+                break
+        if not has_apk:
+            application['apks'].append(package)
         #apps_db.add_apk(application['_id'], package)
         apps_db.update_app(application)
     else:
@@ -914,7 +914,6 @@ def main():
                 sys.exit(1)
 
     if options.all:
-        apk_regex = re.compile("\.apk$")
         for apkfile in os.listdir(repodirs):
             if os.path.isfile(repodirs + '/' + apkfile) and apkfile[-4:] == '.apk':
                 update(apkfile[:-4])

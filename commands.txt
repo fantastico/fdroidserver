@@ -1,1 +1,3 @@
-fdroid sen5_update --apkId=org.fdroid.fdroid --apkFile=trunk-debug
+fdroid update -c
+fdroid sen5_update --all
+fdroid sen5_update --apkFile=trunk-debug
