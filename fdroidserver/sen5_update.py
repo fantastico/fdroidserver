@@ -368,7 +368,7 @@ def scan_apks(repo_dir, knownapks, apkFile=None):
                 logging.error("Could not find {0} to remove it".format(apkfile))
         else:
             logging.error("Failed to get apk information, skipping " + apkfile)
-        sys.exit(0);
+        sys.exit(0)
 
     for line in p.output.splitlines():
         if line.startswith("package:"):
@@ -695,13 +695,27 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     else:
         application['repo'] = repo
 
+    if not 'score' in application:
+        application['score'] = 0
+    if not 'downloads' in application:
+        application['downloads'] = 0
+    if not 'marking' in application:
+        application['marking'] = 0
+
+    if not 'pictures' in application:
+        application['pictures'] = []
+
     if 'apks' in application:
-        del application['apks']
-        apps_db.add_apk(application['_id'], package)
+        application['apks'].append(package)
+        #apps_db.add_apk(application['_id'], package)
         apps_db.update_app(application)
     else:
         application['apks'] = [package]
         apps_db.insert_app(application)
+
+
+    # initialize dynamical data for the app
+    # apps_db.init_scores(application['id'])
 
 
 def repo_init(repo_dir):
@@ -767,6 +781,78 @@ config = None
 options = None
 
 
+def update(apkfile):
+    global config, options
+    repodirs = 'repo'
+
+    # Read known apks data (will be updated and written back when we've finished)
+    knownapks = common.KnownApks()
+
+    # Scan all apks in the main repo
+    apk = scan_apks(repodirs, knownapks, apkfile)
+    app = metadata.sen5_read_metadata(apk['id'])
+
+    # Generate a list of categories...
+    categories = set()
+    categories.update(app['Categories'])
+
+    app_entry = apps_db.find_app({'_id': app['id']})
+
+    # query current latest version
+    if not app_entry:
+        app['added'] = apk['added']
+        app['lastupdated'] = apk['added']
+        if app['Name'] is None:
+            app['Name'] = app['id']
+        app['icon'] = apk['icon']
+        app['latestversion'] = apk['versioncode']
+    else:
+        app['added'] = time.strptime(str(app_entry['added']), '%Y-%m-%d')
+        last_updated = time.strptime(str(app_entry['lastupdated']), '%Y-%m-%d')
+        if apk['added'] > last_updated:
+            app['lastupdated'] = apk['added']
+        else:
+            app['lastupdated'] = last_updated
+        if app_entry['latestversion'] > apk['versioncode']:
+            app['Name'] = str(app_entry['name'])
+            app['icon'] = str(app_entry['icon'])
+            app['latestversion'] = app_entry['latestversion']
+        else:
+            if app['Name'] is None:
+                app['Name'] = app['id']
+            app['icon'] = apk['icon'] if 'icon' in apk else None
+            app['latestversion'] = apk['versioncode']
+
+    # Make the index for the main repo...
+    sen5_make_index(app, app_entry, apk, categories, options.repo)
+
+    if config['update_stats']:
+        # Update known apks info...
+        knownapks.writeifchanged()
+
+        # Generate latest apps data for widget
+        if os.path.exists(os.path.join('stats', 'latestapps.txt')):
+            data = ''
+            for line in file(os.path.join('stats', 'latestapps.txt')):
+                appid = line.rstrip()
+                data += appid + "\t"
+                if app['id'] == appid:
+                    data += app['Name'] + "\t"
+                    if app['icon'] is not None:
+                        data += app['icon'] + "\t"
+                    data += app['License'] + "\n"
+                    break
+            f = open(os.path.join(repodirs, 'latestapps.dat'), 'w')
+            f.write(data)
+            f.close()
+
+    # Update the wiki...
+    #   if options.wiki:
+    #       update_wiki(app, apk)
+
+    logging.info("Finished.")
+
+
 def main():
     global config, options
 
@@ -797,9 +883,9 @@ def main():
     parser.add_option("--clean", action="store_true", default=False,
                       help="Clean update - don't uses caches, reprocess all apks")
 
-    parser.add_option("--apkId", default=None, help="apk id")
+    parser.add_option("--all", action="store_true", default=False, help="update all apks")
     parser.add_option("--apkFile", default=None, help="apk file")
-    parser.add_option("--repo", default=None, help="apk file")
+    parser.add_option("--repo", default=None, help="repo name")
     parser.add_option("", "--init", default=False, action="store_true", help="repo init")
 
     (options, args) = parser.parse_args()
@@ -807,7 +893,6 @@ def main():
     config = common.read_config(options)
 
     repodirs = 'repo'
-    repo = options.repo
     if config['archive_older'] != 0:
         repodirs.append('archive')
         if not os.path.exists('archive'):
@@ -828,91 +913,17 @@ def main():
                 logging.critical(k + ' "' + config[k] + '" does not exist! Correct it in config.py.')
                 sys.exit(1)
 
-    # Get all apps...
-    if options.apkId is None:
-        logging.error(' apkId not found')
-        return
-    if options.apkFile is None:
-        logging.error(' apkFile not found')
-        return
-
-    app = metadata.sen5_read_metadata(options.apkId)
-    # apps = [app]
-
-    # Generate a list of categories...
-    categories = set()
-    # for app in apps:
-    categories.update(app['Categories'])
-
-    # Read known apks data (will be updated and written back when we've finished)
-    knownapks = common.KnownApks()
-
-    # Scan all apks in the main repo
-    apk = scan_apks(repodirs, knownapks, options.apkFile)
-
-    if app['id'] != apk['id']:
-        logging.error(' The file ' + options.apkFile + ' with apkId ' + apk['id']
-                      + ' does not match the apkId ' + app['id'])
-        return
-
-    # query current latest version
-
-    app_entry = apps_db.find_app({'_id': app['id']})
-
-    if not app_entry:
-        app['added'] = apk['added']
-        app['lastupdated'] = apk['added']
-        if app['Name'] is None:
-            app['Name'] = app['id']
-        app['icon'] = apk['icon']
-        app['latestversion'] = apk['versioncode']
+    if options.all:
+        apk_regex = re.compile("\.apk$")
+        for apkfile in os.listdir(repodirs):
+            if os.path.isfile(repodirs + '/' + apkfile) and apkfile[-4:] == '.apk':
+                update(apkfile[:-4])
     else:
-        app['added'] = time.strptime(str(app_entry['added']), '%Y-%m-%d')
-
-        last_updated = time.strptime(str(app_entry['lastupdated']), '%Y-%m-%d')
-        if apk['added'] > last_updated:
-            app['lastupdated'] = apk['added']
+        if options.apkFile is None:
+            logging.error(' apkFile not found')
+            return
         else:
-            app['lastupdated'] = last_updated
-
-        if app_entry['latestversion'] > apk['versioncode']:
-            app['Name'] = str(app_entry['name'])
-            app['icon'] = str(app_entry['icon'])
-            app['latestversion'] = app_entry['latestversion']
-        else:
-            if app['Name'] is None:
-                app['Name'] = app['id']
-            app['icon'] = apk['icon'] if 'icon' in apk else None
-            app['latestversion'] = apk['versioncode']
-
-    # Make the index for the main repo...
-    sen5_make_index(app, app_entry, apk, categories, repo)
-
-    if config['update_stats']:
-        # Update known apks info...
-        knownapks.writeifchanged()
-
-        # Generate latest apps data for widget
-        if os.path.exists(os.path.join('stats', 'latestapps.txt')):
-            data = ''
-            for line in file(os.path.join('stats', 'latestapps.txt')):
-                appid = line.rstrip()
-                data += appid + "\t"
-                if app['id'] == appid:
-                    data += app['Name'] + "\t"
-                    if app['icon'] is not None:
-                        data += app['icon'] + "\t"
-                    data += app['License'] + "\n"
-                    break
-            f = open(os.path.join(repodirs, 'latestapps.dat'), 'w')
-            f.write(data)
-            f.close()
-
-    # Update the wiki...
-    #   if options.wiki:
-    #       update_wiki(app, apk)
-
-    logging.info("Finished.")
+            update(options.apkFile)
 
 
 if __name__ == "__main__":
