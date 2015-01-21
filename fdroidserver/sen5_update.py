@@ -431,9 +431,12 @@ def scan_apks(repo_dir, knownapks, apkFile=None):
         logging.warn("no SDK version information found")
         thisinfo['sdkversion'] = 0
 
+    logging.info(thisinfo['id'] + '----------------- start -------------------------------------------------')
     # Check for debuggable apks...
     if common.isApkDebuggable(apkfile, config):
         logging.warn('{0} is set to android:debuggable="true"!'.format(apkfile))
+    else:
+        logging.info('{0} is updating!'.format(apkfile))
 
     # Calculate the sha256...
     sha = hashlib.sha256()
@@ -582,11 +585,11 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         return
 
     if app_entry:
+        logging.info('{0} exists in datababse!'.format(app_entry['_id']))
         application = app_entry
     else:
         application = dict()
-    application['id'] = app['id']
-    application['_id'] = app['id']
+        application['_id'] = app['id']
 
     if 'added' in app:
         application['added'] = time.strftime('%Y-%m-%d', app['added'])
@@ -680,14 +683,6 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
     if len(apk['features']) > 0:
         package['features'] = ','.join(apk['features'])
 
-    if not repo:
-        if not 'repo' in application:
-            if not apps_db.check_app_group_exist({'_id': 'common'}):
-                apps_db.create_common_repository()
-            application['repo'] = 'common'
-    else:
-        application['repo'] = repo
-
     if not 'score' in application:
         application['score'] = 0
     if not 'downloads' in application:
@@ -707,15 +702,15 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
                 break
         if not has_apk:
             application['apks'].append(package)
-        #apps_db.add_apk(application['_id'], package)
         apps_db.update_app(application)
     else:
         application['apks'] = [package]
         apps_db.insert_app(application)
 
-
-    # initialize dynamical data for the app
-    # apps_db.init_scores(application['id'])
+    # update repository
+    if not repo:
+        repo = 'common'
+    apps_db.update_repo(repo, application['_id'])
 
 
 def repo_init(repo_dir):
@@ -780,6 +775,7 @@ def archive_old_apks(apps, apks, archapks, repodir, archivedir, defaultkeepversi
 config = None
 options = None
 
+count = 0
 
 def update(apkfile):
     global config, options
@@ -850,7 +846,10 @@ def update(apkfile):
     #   if options.wiki:
     #       update_wiki(app, apk)
 
-    logging.info("Finished.")
+    global count
+    count += 1
+    logging.info("Finished " + str(count) + "th app.")
+    logging.info(app['id'] + '------------------- end -------------------------------------------------')
 
 
 def main():

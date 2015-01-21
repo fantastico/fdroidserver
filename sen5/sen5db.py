@@ -7,7 +7,7 @@ import xml2json
 import config
 
 score = {
-    '_id': '',
+    '_id': 'test',
     'score': 0,
     'downloads': 0,
     'comment': 0,
@@ -28,8 +28,13 @@ score = {
 
 common_repository = {
     '_id': 'common',
+    'version': 0,
     'conditions': {},
+    'apps': []
+}
 
+app_test = {
+    '_id': 'test'
 }
 
 
@@ -63,7 +68,7 @@ class Sen5AppsDB:
         return self.apps.find_one(query)
 
     def update_app(self, app):
-        self.apps.update({'_id': app['id']}, {'$set': app})
+        self.apps.update({'_id': app['_id']}, {'$set': app})
 
     def add_apk(self, _id, apk):
         self.apps.update({'_id': _id}, {'$push': {'package': apk}})
@@ -113,6 +118,14 @@ class Sen5AppsDB:
                 self.scores.insert(score)
                 print 'init scores for app id=' + str(app_id['_id'])
 
+    def update_repo(self, repo_id, app_id):
+        self.repositories.update({'_id': repo_id}, {'$addToSet': {'apps': app_id}, '$inc': {'version': 1}})
+
+    def init_db(self):
+        self.repositories.insert(common_repository)
+        self.scores.insert(score)
+        # self.apps.insert(app_test)
+
 
 def update_db():
     db = Sen5AppsDB()
@@ -127,7 +140,8 @@ def update_db():
 
 def main():
     db = Sen5AppsDB()
-    db.init_scores()
+    db.init_db()
+    print 'Database initialized!'
 
 
 if __name__ == "__main__":

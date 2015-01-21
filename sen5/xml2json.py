@@ -107,9 +107,8 @@ def readfile():
         sys.exit(-1)
     return inputstream.read()
 
-import pydevd
+
 def main():
-#    pydevd.settrace('192.168.56.1', port=51234, stdoutToServer=True, stderrToServer=True)
     js = getJson('application')
     print js
 
