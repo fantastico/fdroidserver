@@ -48,8 +48,8 @@ def print_help():
         print "   " + cmd + ' ' * (15 - len(cmd)) + summary
     print
 
-import pydevd
-pydevd.settrace('192.168.0.123', port=51234, stdoutToServer=True, stderrToServer=True)
+#import pydevd
+#pydevd.settrace('192.168.0.123', port=51234, stdoutToServer=True, stderrToServer=True)
 
 
 def main():
