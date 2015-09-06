@@ -515,7 +515,7 @@ def sen5_read_metadata(apk_id, xref=True):
             os.makedirs(basedir)
 
     metafile = os.path.join('metadata', apk_id + '.txt')
-    app = parse_metadata(metafile)
+    app = sen5_parse_metadata(metafile)
     check_metadata(app)
 
     if xref:
@@ -805,6 +805,22 @@ def parse_metadata(metafile):
 
     for build in thisinfo['builds']:
         fill_build_defaults(build)
+
+    return thisinfo
+
+
+def sen5_parse_metadata(metafile):
+    thisinfo = {}
+    if metafile:
+        thisinfo['id'] = metafile[9:-4]
+    else:
+        thisinfo['id'] = None
+
+    thisinfo.update(app_defaults)
+
+    # General defaults...
+    thisinfo['builds'] = []
+    thisinfo['comments'] = []
 
     return thisinfo
 

@@ -595,10 +595,13 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
         application['added'] = time.strftime('%Y-%m-%d', app['added'])
     if 'lastupdated' in app:
         application['lastupdated'] = time.strftime('%Y-%m-%d', app['lastupdated'])
-    application['name'] = app['Name']
+    if not 'name' in application or application['name'] == '':
+        application['name'] = application['_id']
     application['latestversion'] = app['latestversion']
-    application['summary'] = app['Summary']
-    if app['icon']:
+    if not 'summary' in application or app['Summary'] != '':
+        application['summary'] = app['Summary']
+    application['icon'] = ''
+    if 'icon' in app and app['icon']:
         application['icon'] = app['icon']
 
     def linkres(link):
@@ -606,7 +609,8 @@ def sen5_make_index(app, app_entry, apk, categories, repo=None):
             return ("fdroid.app:" + link, app['Name'])
         raise MetaDataException("Cannot resolve app id " + link)
 
-    application['description'] = metadata.description_html(app['Description'], linkres)
+    if len(app['Description']) != 0:
+        application['description'] = metadata.description_html(app['Description'], linkres)
     application['license'] = app['License']
     if 'Categories' in app:
         application['categories'] = ','.join(app["Categories"])
@@ -800,7 +804,8 @@ def update(apkfile):
         app['lastupdated'] = apk['added']
         if app['Name'] is None:
             app['Name'] = app['id']
-        app['icon'] = apk['icon']
+        if 'icon' in apk:
+            app['icon'] = apk['icon']
         app['latestversion'] = apk['versioncode']
     else:
         app['added'] = time.strptime(str(app_entry['added']), '%Y-%m-%d')
